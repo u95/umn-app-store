@@ -1,0 +1,6 @@
+{
+  "name": "UMN App Store",
+  "description": "A beautiful, production-ready Android App Store inspired by Google Play Store and Material Design 3, featuring direct APK downloads, download tracking, search, filtering, and a powerful publisher console dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

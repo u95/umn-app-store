@@ -5,13 +5,19 @@ import './index.css';
 
 // Register PWA Service Worker with auto-update & cache-busting
 if ('serviceWorker' in navigator) {
+  const isPreview = 
+    window.location.hostname.includes('ais-dev') || 
+    window.location.hostname.includes('ais-pre') || 
+    window.location.hostname.includes('localhost') || 
+    window.location.hostname.includes('127.0.0.1');
+
   // In AI Studio development or preview, completely bypass/unregister the Service Worker
   // and clear all caches to guarantee immediate updates and prevent blank screens.
-  if ((import.meta as any).env?.DEV) {
+  if (isPreview) {
     navigator.serviceWorker.getRegistrations().then((registrations) => {
       for (const registration of registrations) {
         registration.unregister();
-        console.log('Unregistered Service Worker during development:', registration.scope);
+        console.log('Unregistered Service Worker during preview:', registration.scope);
       }
     });
     if ('caches' in window) {
@@ -20,7 +26,7 @@ if ('serviceWorker' in navigator) {
           caches.delete(name);
         });
       });
-      console.log('Cleared all Service Worker caches in development.');
+      console.log('Cleared all Service Worker caches in preview.');
     }
   } else {
     window.addEventListener('load', () => {

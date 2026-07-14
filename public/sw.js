@@ -41,7 +41,8 @@ self.addEventListener('fetch', (e) => {
   // Self-detect if we are in development/preview environment
   const isDev = self.location.hostname.includes('localhost') || 
                 self.location.hostname.includes('127.0.0.1') || 
-                self.location.hostname.includes('ais-dev');
+                self.location.hostname.includes('ais-dev') ||
+                self.location.hostname.includes('ais-pre');
 
   if (isDev) {
     // In development mode, wipe cache, unregister service worker and fetch directly from network

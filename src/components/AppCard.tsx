@@ -94,7 +94,10 @@ export default function AppCard({ app, onClick, onDownloadClick }: AppCardProps)
         </button>
         {onDownloadClick && (
           <button 
-            onClick={(e) => onDownloadClick(app, e)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDownloadClick(app, e);
+            }}
             className="flex items-center justify-center w-10 h-9 rounded-xl bg-green-500 hover:bg-green-600 text-white shadow-xs hover:shadow-md transition-all active:scale-95"
             title="Download APK"
           >

@@ -150,16 +150,31 @@ export default function App() {
 
   // 4. Download Execution Counter (Downloads APK file & increments Firestore/localStorage logs)
   const handleDownloadApk = async (app: AppModel) => {
+    if (!app || !app.apk) {
+      console.error("Invalid app or missing APK link");
+      return;
+    }
+
     try {
-      // 1. Run async database counter increments
-      await dbService.incrementDownloads(app.id);
-      
-      // 2. Trigger browser download redirect
-      window.open(app.apk, '_blank', 'noopener,noreferrer');
-      
-      // 3. Fast-reload list from source to increment stats counters in UI immediately
-      const updatedApps = await dbService.getApps();
-      setApps(updatedApps);
+      // 1. Trigger browser download synchronously FIRST to preserve user gesture context and bypass popup blockers
+      const link = document.createElement('a');
+      link.href = app.apk;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // 2. Increment database count in the background (non-blocking)
+      dbService.incrementDownloads(app.id)
+        .then(async () => {
+          // 3. Fast-reload list from source to update download statistics in the UI immediately
+          const updatedApps = await dbService.getApps();
+          setApps(updatedApps);
+        })
+        .catch((err) => {
+          console.error("Failed to increment download count in background:", err);
+        });
     } catch (e) {
       console.error("Failed to execute APK download routine", e);
     }

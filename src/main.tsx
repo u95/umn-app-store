@@ -15,8 +15,7 @@ if ('serviceWorker' in navigator) {
       });
     }
 
-    const baseUrl = (import.meta as any).env.BASE_URL || '/';
-    const swPath = `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}sw.js`;
+    const swPath = 'sw.js';
 
     navigator.serviceWorker.register(swPath)
       .then((reg) => {

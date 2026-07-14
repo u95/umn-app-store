@@ -154,10 +154,30 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
+    
+    // Serve static assets with tailored caching strategies
+    app.use(express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html') || filePath.endsWith('sw.js') || filePath.endsWith('manifest.json')) {
+          // Never cache entry-point scripts or HTML, ensuring instant PWA updates
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+        } else {
+          // Fingerprinted asset bundles can be safely cached for 1 year
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      }
+    }));
+
     // In Express v4, use get('*')
     app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+      // If the request points to a non-existent asset or static file, return 404 instead of index.html.
+      // This completely prevents the "Unexpected token '<'" / Blank Screen error when older index.html files request deleted JS chunks.
+      if (req.path.startsWith('/assets/') || req.path.includes('.') || req.path.endsWith('/sw.js') || req.path.endsWith('/manifest.json')) {
+        res.status(404).send('Not Found');
+      } else {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+        res.sendFile(path.join(distPath, "index.html"));
+      }
     });
   }
 

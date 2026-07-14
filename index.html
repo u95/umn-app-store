@@ -4,6 +4,50 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>UMN App Store - Android Play Store</title>
+    
+    <!-- Programmatic Cache-Busting and Service Worker Cleanup to prevent PWA Black Screen of Death -->
+    <script>
+      // 1. Immediately clean up any registered service workers to disable stale cache interceptors
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const registration of registrations) {
+            registration.unregister().then((unregistered) => {
+              if (unregistered) console.log('Successfully unregistered old service worker.');
+            });
+          }
+        });
+      }
+
+      // 2. Programmatically delete all Cache Storage caches
+      if ('caches' in window) {
+        caches.keys().then((keys) => {
+          keys.forEach((key) => {
+            caches.delete(key).then(() => {
+              console.log('Cleared Cache Storage:', key);
+            });
+          });
+        });
+      }
+
+      // 3. Catch bundle chunk loading or syntax errors and force reload bypassing cache
+      window.addEventListener('error', (e) => {
+        const msg = e.message || '';
+        const isChunkError = 
+          msg.includes('SyntaxError') || 
+          msg.includes('unexpected token') || 
+          msg.includes('Loading chunk') || 
+          msg.includes('Failed to fetch dynamically imported module') ||
+          msg.includes('import.meta');
+          
+        if (isChunkError) {
+          console.warn('Chunk loading or script parsing error detected! Performing clean cache-busted reload...');
+          const url = new URL(window.location.href);
+          url.searchParams.set('reload_buster', Date.now().toString());
+          window.location.replace(url.toString());
+        }
+      }, true);
+    </script>
+
     <link rel="manifest" href="./manifest.json" />
     <meta name="theme-color" content="#22c55e" />
     <meta name="mobile-web-app-capable" content="yes" />

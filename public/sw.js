@@ -44,27 +44,6 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Self-detect if we are in development/preview environment
-  const isDev = self.location.hostname.includes('localhost') || 
-                self.location.hostname.includes('127.0.0.1') || 
-                self.location.hostname.includes('ais-dev') ||
-                self.location.hostname.includes('ais-pre');
-
-  if (isDev) {
-    // In development mode, wipe cache, unregister service worker and fetch directly from network
-    console.warn('[SW] Dev environment detected. Self-healing/unregistering...', url.href);
-    e.respondWith(
-      caches.keys().then((keys) => {
-        return Promise.all(keys.map((key) => caches.delete(key)));
-      }).then(() => {
-        return self.registration.unregister();
-      }).then(() => {
-        return fetch(e.request);
-      })
-    );
-    return;
-  }
-
   // Self-healing: If a reload_buster is present (meaning a client-side chunk loading or syntax error was detected),
   // immediately wipe the cache and serve directly from network to repair the app state.
   if (url.searchParams.has('reload_buster')) {

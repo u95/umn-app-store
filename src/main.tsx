@@ -11,9 +11,12 @@ if ('serviceWorker' in navigator) {
     window.location.hostname.includes('localhost') || 
     window.location.hostname.includes('127.0.0.1');
 
-  // In AI Studio development or preview, completely bypass/unregister the Service Worker
-  // and clear all caches to guarantee immediate updates and prevent blank screens.
-  if (isPreview) {
+  // In AI Studio editor's development iframe, completely bypass/unregister the Service Worker
+  // and clear all caches to guarantee immediate updates during code editing.
+  // In any top-level tab or standalone PWA on a mobile device, register it normally so that
+  // the PWA is fully installable and works offline without blank screens.
+  const shouldBypass = isPreview && (window.self !== window.top);
+  if (shouldBypass) {
     navigator.serviceWorker.getRegistrations().then((registrations) => {
       for (const registration of registrations) {
         registration.unregister();

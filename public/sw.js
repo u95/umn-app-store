@@ -37,6 +37,13 @@ self.addEventListener('fetch', (e) => {
 
   const url = new URL(e.request.url);
 
+  // Bypass Service Worker completely for any external/cross-origin requests.
+  // This allows the browser to perform native downloads (e.g., APK files from GitHub releases)
+  // and fetch external assets without CORS or cache interception.
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
   // Self-detect if we are in development/preview environment
   const isDev = self.location.hostname.includes('localhost') || 
                 self.location.hostname.includes('127.0.0.1') || 

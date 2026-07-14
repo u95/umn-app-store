@@ -156,14 +156,12 @@ export default function App() {
     }
 
     try {
-      // 1. Trigger browser download synchronously FIRST to preserve user gesture context and bypass popup blockers
-      const link = document.createElement('a');
-      link.href = app.apk;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // 1. Trigger browser download synchronously FIRST using direct window assignment.
+      // In standalone PWAs on Android, direct assignment is the most robust way to prompt 
+      // the system's native download manager or open the link in the native browser,
+      // avoiding dynamic "_blank" pop-up blocker constraints. Since APKs are binary files,
+      // the browser will start downloading it without navigating away from the current page.
+      window.location.href = app.apk;
 
       // 2. Increment database count in the background (non-blocking)
       dbService.incrementDownloads(app.id)
@@ -176,7 +174,18 @@ export default function App() {
           console.error("Failed to increment download count in background:", err);
         });
     } catch (e) {
-      console.error("Failed to execute APK download routine", e);
+      console.error("Failed to execute direct APK download routine, using anchor fallback:", e);
+      try {
+        const link = document.createElement('a');
+        link.href = app.apk;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (err) {
+        console.error("Anchor fallback also failed:", err);
+      }
     }
   };
 

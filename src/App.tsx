@@ -12,6 +12,7 @@ import DetailsView from './views/DetailsView';
 import LoginView from './views/LoginView';
 import AdminDashboardView from './views/AdminDashboardView';
 import AIChatBot from './components/AIChatBot';
+import InstallGuideModal from './components/InstallGuideModal';
 
 export default function App() {
   // Sync state managers
@@ -27,6 +28,7 @@ export default function App() {
   // PWA installer support (Install App Store as native app / APK)
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBtn, setShowInstallBtn] = useState<boolean>(true); // Default true to allow manual instructions fallback
+  const [showInstallGuide, setShowInstallGuide] = useState<boolean>(false);
 
   useEffect(() => {
     const handleBeforeInstall = (e: any) => {
@@ -40,8 +42,8 @@ export default function App() {
 
   const handleInstallApp = async () => {
     if (!deferredPrompt) {
-      // Fallback instructions in elegant dialog or alert
-      alert("UMN App Store-ஐ செயலியைப் போல நிறுவ, உங்கள் மொபைல் கூகுள் குரோம் (Chrome) பிரவுசரின் மெனுவை அழுத்தி, 'Add to Home screen' (முகப்புத் திரையில் சேர்) என்பதைத் தேர்ந்தெடுக்கவும்.");
+      // Fallback instructions in elegant dialog modal instead of browser alert
+      setShowInstallGuide(true);
       return;
     }
     deferredPrompt.prompt();
@@ -255,6 +257,12 @@ export default function App() {
       
       {/* Floating Tamil AI Assistant Chatbot */}
       <AIChatBot />
+
+      {/* Modern, visually beautiful, animated Install Instructions Modal */}
+      <InstallGuideModal 
+        isOpen={showInstallGuide} 
+        onClose={() => setShowInstallGuide(false)} 
+      />
     </div>
   );
 }

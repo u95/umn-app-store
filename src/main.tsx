@@ -15,7 +15,10 @@ if ('serviceWorker' in navigator) {
       });
     }
 
-    navigator.serviceWorker.register('/sw.js')
+    const baseUrl = (import.meta as any).env.BASE_URL || '/';
+    const swPath = `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}sw.js`;
+
+    navigator.serviceWorker.register(swPath)
       .then((reg) => {
         console.log('Service Worker registered successfully:', reg.scope);
         // Force update check

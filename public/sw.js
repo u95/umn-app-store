@@ -19,6 +19,6 @@ self.addEventListener('activate', (e) => {
 // A standard pass-through fetch handler that lets all requests go through the network.
 // This is 100% bug-free and prevents black screen issues caused by Vite bundle hash updates.
 self.addEventListener('fetch', (e) => {
-  // Pass-through
+  e.respondWith(fetch(e.request));
 });
 

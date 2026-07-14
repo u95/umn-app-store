@@ -1,4 +1,4 @@
-const CACHE_NAME = 'umn-play-store-v4';
+const CACHE_NAME = 'umn-play-store-v5';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -38,6 +38,20 @@ self.addEventListener('fetch', (e) => {
 
   const url = new URL(e.request.url);
 
+  // Self-healing: If a reload_buster is present (meaning a client-side chunk loading or syntax error was detected),
+  // immediately wipe the cache and serve directly from network to repair the app state.
+  if (url.searchParams.has('reload_buster')) {
+    console.warn('[SW] Reload buster detected! Wiping cache for self-healing...', url.href);
+    e.respondWith(
+      caches.keys().then((keys) => {
+        return Promise.all(keys.map((key) => caches.delete(key)));
+      }).then(() => {
+        return fetch(e.request);
+      })
+    );
+    return;
+  }
+
   // Bypass API calls, live sockets, and external authentication/firebase services
   if (
     url.pathname.includes('/api/') || 
@@ -70,6 +84,7 @@ self.addEventListener('fetch', (e) => {
   }
 
   // 2. Main pages, index.html, root, and other requests -> Network-First
+  // We use { ignoreSearch: true } to ensure query params like ?pwa=true do not break cache matching.
   e.respondWith(
     fetch(e.request)
       .then((networkResponse) => {
@@ -83,13 +98,16 @@ self.addEventListener('fetch', (e) => {
       })
       .catch(() => {
         // Fallback to cache if network is unavailable/offline
-        return caches.match(e.request).then((cachedResponse) => {
+        return caches.match(e.request, { ignoreSearch: true }).then((cachedResponse) => {
           if (cachedResponse) {
             return cachedResponse;
           }
           // If completely offline and requesting page navigation, return cached root/index.html
           if (e.request.mode === 'navigate') {
-            return caches.match('/') || caches.match('/index.html');
+            return caches.match('/', { ignoreSearch: true }).then((r) => {
+              if (r) return r;
+              return caches.match('/index.html', { ignoreSearch: true });
+            });
           }
         });
       })

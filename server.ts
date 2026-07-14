@@ -172,7 +172,9 @@ async function startServer() {
     app.get("*", (req, res) => {
       // If the request points to a non-existent asset or static file, return 404 instead of index.html.
       // This completely prevents the "Unexpected token '<'" / Blank Screen error when older index.html files request deleted JS chunks.
-      if (req.path.startsWith('/assets/') || req.path.includes('.') || req.path.endsWith('/sw.js') || req.path.endsWith('/manifest.json')) {
+      // We exclude .html files so that index.html or multi-page redirections aren't treated as missing assets.
+      const isAsset = (req.path.startsWith('/assets/') || (req.path.includes('.') && !req.path.endsWith('.html'))) && !req.path.endsWith('/sw.js') && !req.path.endsWith('/manifest.json');
+      if (isAsset) {
         res.status(404).send('Not Found');
       } else {
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');

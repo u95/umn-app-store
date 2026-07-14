@@ -11,6 +11,7 @@ import HomeView from './views/HomeView';
 import DetailsView from './views/DetailsView';
 import LoginView from './views/LoginView';
 import AdminDashboardView from './views/AdminDashboardView';
+import AIChatBot from './components/AIChatBot';
 
 export default function App() {
   // Sync state managers
@@ -22,6 +23,35 @@ export default function App() {
   // Custom router state matching client requirements
   const [currentPage, setCurrentPage] = useState<string>('home'); // 'home', 'app', 'login', 'admin'
   const [selectedAppId, setSelectedAppId] = useState<string>('');
+
+  // PWA installer support (Install App Store as native app / APK)
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBtn, setShowInstallBtn] = useState<boolean>(true); // Default true to allow manual instructions fallback
+
+  useEffect(() => {
+    const handleBeforeInstall = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallBtn(true);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) {
+      // Fallback instructions in elegant dialog or alert
+      alert("UMN App Store-ஐ செயலியைப் போல நிறுவ, உங்கள் மொபைல் கூகுள் குரோம் (Chrome) பிரவுசரின் மெனுவை அழுத்தி, 'Add to Home screen' (முகப்புத் திரையில் சேர்) என்பதைத் தேர்ந்தெடுக்கவும்.");
+      return;
+    }
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      console.log('User accepted the install prompt');
+    }
+    setDeferredPrompt(null);
+    setShowInstallBtn(false);
+  };
   
   // Dark mode selector
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -168,6 +198,8 @@ export default function App() {
         onLogout={handleLogout}
         isDarkMode={isDarkMode}
         onToggleTheme={() => setIsDarkMode(!isDarkMode)}
+        showInstallBtn={showInstallBtn}
+        onInstallApp={handleInstallApp}
       />
 
       {/* Main workspace layout router */}
@@ -220,6 +252,9 @@ export default function App() {
           )
         )}
       </main>
+      
+      {/* Floating Tamil AI Assistant Chatbot */}
+      <AIChatBot />
     </div>
   );
 }

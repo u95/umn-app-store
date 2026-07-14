@@ -1,0 +1,22 @@
+{
+  "short_name": "UMN Store",
+  "name": "UMN Play Store",
+  "description": "UMN Ministry Android App Store & Console",
+  "icons": [
+    {
+      "src": "https://img.icons8.com/color/192/google-play.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://img.icons8.com/color/512/google-play.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "./?pwa=true",
+  "background_color": "#09090b",
+  "theme_color": "#22c55e",
+  "display": "standalone",
+  "orientation": "portrait"
+}

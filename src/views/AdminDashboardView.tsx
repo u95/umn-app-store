@@ -7,7 +7,7 @@ import React, { useState, useMemo } from 'react';
 import { 
   LayoutGrid, Plus, Search, LogOut, Trash2, Edit2, Download, Star, 
   Layers, Database, Calendar, AppWindow, FileText, CheckCircle, 
-  X, HelpCircle, ArrowUpRight, AlertCircle, RefreshCw, Zap
+  X, HelpCircle, ArrowUpRight, AlertCircle, RefreshCw, Zap, Sparkles
 } from 'lucide-react';
 import { AppModel, CategoryType } from '../types';
 
@@ -55,6 +55,35 @@ export default function AdminDashboardView({
   const [appSize, setAppSize] = useState('12.5 MB');
   const [appStatus, setAppStatus] = useState<'published' | 'draft' | 'suspended'>('published');
   const [isFeatured, setIsFeatured] = useState(false);
+
+  // AI description generator states and handler
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+
+  const handleAiGenerateDescription = async () => {
+    if (!appName.trim()) {
+      alert("தயவுசெய்து முதலில் செயலியின் பெயரை (App Name) உள்ளிடவும்.");
+      return;
+    }
+    setIsGeneratingDescription(true);
+    try {
+      const res = await fetch("/api/ai/generate-description", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: appName,
+          category: appCategory,
+          features: appDescription,
+        }),
+      });
+      if (!res.ok) throw new Error("API error");
+      const data = await res.json();
+      setAppDescription(data.description);
+    } catch (e) {
+      alert("AI விளக்கம் உருவாக்க முடியவில்லை. உங்கள் .env கோப்பில் GEMINI_API_KEY உள்ளதா என சரிபார்க்கவும்.");
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
 
   // Computed Console Stats
   const stats = useMemo(() => {
@@ -807,9 +836,21 @@ export default function AdminDashboardView({
 
               {/* Description */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pl-0.5">
-                  Google Play Description *
-                </label>
+                <div className="flex justify-between items-center pl-0.5 pr-1">
+                  <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Google Play Description *
+                  </label>
+                  <button
+                    type="button"
+                    disabled={isGeneratingDescription}
+                    onClick={handleAiGenerateDescription}
+                    className="flex items-center gap-1 text-[10px] font-black tracking-tight text-white bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 px-2.5 py-1 rounded-lg cursor-pointer shadow shadow-green-500/10 disabled:opacity-50 transition-all select-none"
+                    title="Generate description with Gemini AI"
+                  >
+                    <Sparkles className="w-3 h-3 text-yellow-300 animate-pulse" />
+                    <span>{isGeneratingDescription ? "AI Writing..." : "Gemini AI மூலம் எழுதுக"}</span>
+                  </button>
+                </div>
                 <textarea
                   required
                   rows={4}

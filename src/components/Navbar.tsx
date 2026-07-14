@@ -15,6 +15,8 @@ interface NavbarProps {
   onLogout: () => void;
   isDarkMode: boolean;
   onToggleTheme: () => void;
+  showInstallBtn?: boolean;
+  onInstallApp?: () => void;
 }
 
 export default function Navbar({
@@ -25,7 +27,9 @@ export default function Navbar({
   currentUser,
   onLogout,
   isDarkMode,
-  onToggleTheme
+  onToggleTheme,
+  showInstallBtn = false,
+  onInstallApp
 }: NavbarProps) {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [showFirebaseInfo, setShowFirebaseInfo] = useState(false);
@@ -95,6 +99,22 @@ export default function Navbar({
 
         {/* Right Navigation Actions */}
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          
+          {/* PWA / APK Install Button */}
+          {showInstallBtn && onInstallApp && (
+            <button
+              onClick={onInstallApp}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-green-500 hover:bg-green-600 text-white shadow-md shadow-green-500/15 transition-all select-none cursor-pointer"
+              title="Install App Store as Mobile App / APK"
+              id="install-pwa-btn"
+            >
+              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current stroke-[2.5]" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 15V3m0 12l-4-4m4 4l4-4M4 17v1a3 3 0 003 3h10a3 3 0 003-3v-1" />
+              </svg>
+              <span className="hidden md:inline">Install App Store (APK)</span>
+              <span className="md:hidden font-bold text-xs">செயலியை நிறுவு</span>
+            </button>
+          )}
           
           {/* Database Mode Pill */}
           <div 

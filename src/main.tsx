@@ -30,7 +30,11 @@ if ('serviceWorker' in navigator) {
     }
   } else {
     window.addEventListener('load', () => {
-      const swPath = '/sw.js';
+      // Dynamically get the base path for service worker to support subdirectory deployments like GitHub Pages
+      const basePath = window.location.pathname.endsWith('/') 
+        ? window.location.pathname 
+        : window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+      const swPath = `${basePath}sw.js`;
 
       navigator.serviceWorker.register(swPath, { updateViaCache: 'none' })
         .then((reg) => {

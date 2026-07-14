@@ -1,9 +1,9 @@
-const CACHE_NAME = 'umn-play-store-v5';
+const CACHE_NAME = 'umn-play-store-v6';
 
 const PRECACHE_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
+  './',
+  './index.html',
+  './manifest.json',
   'https://img.icons8.com/color/192/google-play.png'
 ];
 
@@ -125,9 +125,9 @@ self.addEventListener('fetch', (e) => {
           }
           // If completely offline and requesting page navigation, return cached root/index.html
           if (e.request.mode === 'navigate') {
-            return caches.match('/', { ignoreSearch: true }).then((r) => {
+            return caches.match('./', { ignoreSearch: true }).then((r) => {
               if (r) return r;
-              return caches.match('/index.html', { ignoreSearch: true });
+              return caches.match('./index.html', { ignoreSearch: true });
             });
           }
         });

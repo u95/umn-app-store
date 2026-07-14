@@ -1,0 +1,163 @@
+[
+  {
+    "id": "umn-bible-daily",
+    "name": "UMN Holy Bible Daily",
+    "developer": "UMN Ministry Devs",
+    "version": "2.1.0",
+    "category": "Bible",
+    "description": "Experience the Holy Bible like never before with UMN Holy Bible Daily. Crafted specifically for students and community members, this app features standard devotional readings, offline Scripture access, parallel translations, and dynamic audio playback. Highlighting, verse-of-the-day widgets, and deep search tools allow you to study God's word wherever you are. Join community reading plans and share inspirational verses in gorgeous, high-contrast typography directly to your peers.",
+    "icon": "https://images.unsplash.com/photo-1504052434569-70ad58210b87?auto=format&fit=crop&w=150&h=150&q=80",
+    "apk": "https://github.com/umnministry/bible-app/releases/download/v2.1.0/umn-bible-daily.apk",
+    "screenshots": [
+      "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&h=1000&q=80",
+      "https://images.unsplash.com/photo-1504052434569-70ad58210b87?auto=format&fit=crop&w=600&h=1000&q=80",
+      "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=600&h=1000&q=80"
+    ],
+    "downloads": 1240,
+    "rating": 4.9,
+    "size": "15.4 MB",
+    "createdAt": "2026-06-01T12:00:00Z",
+    "status": "published",
+    "featured": true,
+    "trending": true,
+    "updatedAt": "2026-07-05T14:30:00Z",
+    "reviewsCount": 48
+  },
+  {
+    "id": "umn-hymnal-praise",
+    "name": "UMN Hymnal & Praise",
+    "developer": "UMN Choir Team",
+    "version": "3.0.1",
+    "category": "Music",
+    "description": "UMN Hymnal & Praise brings a comprehensive collection of over 2,000 traditional hymns and contemporary worship songs straight to your pocket. This app includes interactive guitar and piano chords, sheet music downloads, and professional audio accompaniments for private worship or team rehearsals. With personalized playlist creation, projection mode templates for church screens, and transposable key tools, leading worship has never been more intuitive and accessible.",
+    "icon": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=150&h=150&q=80",
+    "apk": "https://github.com/umnministry/hymnal-praise/releases/download/v3.0.1/hymnal-praise.apk",
+    "screenshots": [
+      "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=600&h=1000&q=80",
+      "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=600&h=1000&q=80",
+      "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=600&h=1000&q=80"
+    ],
+    "downloads": 852,
+    "rating": 4.8,
+    "size": "22.0 MB",
+    "createdAt": "2026-05-15T08:00:00Z",
+    "status": "published",
+    "featured": true,
+    "trending": false,
+    "updatedAt": "2026-06-20T10:15:00Z",
+    "reviewsCount": 32
+  },
+  {
+    "id": "christian-trivia-quest",
+    "name": "Christian Trivia Quest",
+    "developer": "UMN Gamers",
+    "version": "1.0.5",
+    "category": "Games",
+    "description": "Embark on an educational journey testing your Biblical knowledge! Christian Trivia Quest contains thousands of carefully vetted quiz questions spanning both the Old and New Testaments, church history, theology, and parables. Play in timed survival mode, create multiplayer lobbies with classmates, unlock beautiful badges, and climb the global high-score leaderboard. It is the perfect blend of learning, spiritual growth, and casual entertainment.",
+    "icon": "https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?auto=format&fit=crop&w=150&h=150&q=80",
+    "apk": "https://github.com/umnministry/trivia-quest/releases/download/v1.0.5/trivia-quest.apk",
+    "screenshots": [
+      "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&h=1000&q=80",
+      "https://images.unsplash.com/photo-1553481187-be93c21490a9?auto=format&fit=crop&w=600&h=1000&q=80"
+    ],
+    "downloads": 412,
+    "rating": 4.7,
+    "size": "32.1 MB",
+    "createdAt": "2026-06-10T14:20:00Z",
+    "status": "published",
+    "featured": false,
+    "trending": true,
+    "updatedAt": "2026-07-01T09:00:00Z",
+    "reviewsCount": 15
+  },
+  {
+    "id": "umn-study-connect",
+    "name": "UMN Study Connect",
+    "developer": "UMN Student Union",
+    "version": "1.4.2",
+    "category": "Education",
+    "description": "UMN Study Connect is the official campus academic companion. It simplifies course collaboration by enabling students to locate study groups, schedule shared study sessions, exchange scanned lecture notes, and get alerts on class assignment deadlines. Sync calendar timelines and receive announcements directly from academic unions and peers.",
+    "icon": "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=150&h=150&q=80",
+    "apk": "https://github.com/umnministry/study-connect/releases/download/v1.4.2/umn-study-connect.apk",
+    "screenshots": [
+      "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=600&h=1000&q=80",
+      "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=600&h=1000&q=80"
+    ],
+    "downloads": 928,
+    "rating": 4.6,
+    "size": "18.2 MB",
+    "createdAt": "2026-04-20T09:00:00Z",
+    "status": "published",
+    "featured": false,
+    "trending": true,
+    "updatedAt": "2026-06-15T11:45:00Z",
+    "reviewsCount": 29
+  },
+  {
+    "id": "daily-prayer-journal",
+    "name": "Daily Prayer Journal",
+    "developer": "UMN Prayer Ministry",
+    "version": "2.5.4",
+    "category": "Lifestyle",
+    "description": "Transform your daily devotional habit with Daily Prayer Journal. Log your personal reflections, set structured prayer schedules with private notification cards, and track answered prayers over time. This highly aesthetic, eye-safe application serves as a tranquil, private sanctuary on your Android device, accompanied by curated daily devotions and scripture references to start each morning in peace.",
+    "icon": "https://images.unsplash.com/photo-1507504038482-76210f54ce55?auto=format&fit=crop&w=150&h=150&q=80",
+    "apk": "https://github.com/umnministry/prayer-journal/releases/download/v2.5.4/prayer-journal.apk",
+    "screenshots": [
+      "https://images.unsplash.com/photo-1499209974431-9dddcece7f88?auto=format&fit=crop&w=600&h=1000&q=80",
+      "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?auto=format&fit=crop&w=600&h=1000&q=80"
+    ],
+    "downloads": 531,
+    "rating": 4.9,
+    "size": "11.2 MB",
+    "createdAt": "2026-03-12T10:00:00Z",
+    "status": "published",
+    "featured": true,
+    "trending": false,
+    "updatedAt": "2026-05-28T16:20:00Z",
+    "reviewsCount": 24
+  },
+  {
+    "id": "umn-secure-scanner",
+    "name": "UMN Secure Scanner",
+    "developer": "UMN Tech Labs",
+    "version": "1.1.0",
+    "category": "Tools",
+    "description": "UMN Secure Scanner turns your Android phone into a high-performance document digitizer. Using advanced edge detection algorithms, it automatically trims margins and enhances clarity for class notes, homework, assignments, and book pages. It features built-in OCR text extraction in multiple languages and secure exports to PDF or JPEG formatted files, directly protecting user data privacy with local processing.",
+    "icon": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=150&h=150&q=80",
+    "apk": "https://github.com/umnministry/secure-scanner/releases/download/v1.1.0/scanner.apk",
+    "screenshots": [
+      "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=600&h=1000&q=80"
+    ],
+    "downloads": 1560,
+    "rating": 4.5,
+    "size": "8.9 MB",
+    "createdAt": "2026-02-18T16:00:00Z",
+    "status": "published",
+    "featured": false,
+    "trending": true,
+    "updatedAt": "2026-04-12T08:30:00Z",
+    "reviewsCount": 56
+  },
+  {
+    "id": "worship-handbook",
+    "name": "Worship Leaders Handbook",
+    "developer": "UMN Literature",
+    "version": "1.0.0",
+    "category": "Books",
+    "description": "An essential digital handbook written specifically for worship pastors, music directors, and audio engineers. Read comprehensive essays on the theology of worship, practical checklists for team leadership, guidelines on audio staging, and stage setup schemas. Bookmark critical chapters, make personal annotations, and share outline PDFs with your ministry teams seamlessly.",
+    "icon": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=150&h=150&q=80",
+    "apk": "https://github.com/umnministry/worship-handbook/releases/download/v1.0.0/handbook.apk",
+    "screenshots": [
+      "https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&fit=crop&w=600&h=1000&q=80"
+    ],
+    "downloads": 247,
+    "rating": 4.8,
+    "size": "6.5 MB",
+    "createdAt": "2026-05-01T14:00:00Z",
+    "status": "published",
+    "featured": false,
+    "trending": false,
+    "updatedAt": "2026-05-01T14:00:00Z",
+    "reviewsCount": 9
+  }
+]

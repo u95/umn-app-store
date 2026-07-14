@@ -182,17 +182,26 @@ class DatabaseService {
         }
         return list;
       } catch (e) {
-        console.error("Failed to fetch from Firestore, falling back to local data.", e);
-        return this.getLocalApps();
+        console.error("Failed to fetch from Firestore, falling back to server database.", e);
+        return this.getServerOrLocalApps();
       }
     } else {
-      // Simulate network latency for beautiful loading skeleton visibility
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve(this.getLocalApps());
-        }, 500);
-      });
+      return this.getServerOrLocalApps();
     }
+  }
+
+  private async getServerOrLocalApps(): Promise<AppModel[]> {
+    try {
+      const res = await fetch("/api/apps");
+      if (res.ok) {
+        const serverApps = await res.json();
+        this.saveLocalApps(serverApps);
+        return serverApps;
+      }
+    } catch (e) {
+      console.warn("Failed to retrieve apps from server, fallback to local storage", e);
+    }
+    return this.getLocalApps();
   }
 
   public async getAppById(id: string): Promise<AppModel | null> {
@@ -205,14 +214,25 @@ class DatabaseService {
         }
         return null;
       } catch (e) {
-        console.error("Firestore getAppById failed, reading locally", e);
-        const apps = this.getLocalApps();
-        return apps.find(a => a.id === id) || null;
+        console.error("Firestore getAppById failed, reading from server", e);
+        return this.getServerOrLocalAppById(id);
       }
     } else {
-      const apps = this.getLocalApps();
-      return apps.find(a => a.id === id) || null;
+      return this.getServerOrLocalAppById(id);
     }
+  }
+
+  private async getServerOrLocalAppById(id: string): Promise<AppModel | null> {
+    try {
+      const res = await fetch(`/api/apps/${encodeURIComponent(id)}`);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn("Failed to get app from server, fallback to local storage", e);
+    }
+    const apps = this.getLocalApps();
+    return apps.find(a => a.id === id) || null;
   }
 
   public async addApp(appData: Omit<AppModel, 'id'>): Promise<string> {
@@ -233,12 +253,25 @@ class DatabaseService {
         await setDoc(doc(this.firestore, 'apps', id), newApp);
         return id;
       } catch (e) {
-        console.error("Firestore addApp failed, writing locally", e);
+        console.error("Firestore addApp failed, writing to server", e);
       }
     }
 
+    try {
+      const res = await fetch("/api/apps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(appData)
+      });
+      if (res.ok) {
+        const savedApp = await res.json();
+        return savedApp.id;
+      }
+    } catch (e) {
+      console.warn("Failed to save app to server, saving locally", e);
+    }
+
     const apps = this.getLocalApps();
-    // Check if ID already exists
     const finalId = apps.some(a => a.id === id) ? `${id}-${Date.now()}` : id;
     newApp.id = finalId;
     apps.unshift(newApp);
@@ -258,8 +291,21 @@ class DatabaseService {
         await updateDoc(docRef, cleanUpdate);
         return;
       } catch (e) {
-        console.error("Firestore updateApp failed, updating locally", e);
+        console.error("Firestore updateApp failed, updating on server", e);
       }
+    }
+
+    try {
+      const res = await fetch(`/api/apps/${encodeURIComponent(id)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedData)
+      });
+      if (res.ok) {
+        return;
+      }
+    } catch (e) {
+      console.warn("Failed to update app on server, updating locally", e);
     }
 
     const apps = this.getLocalApps();
@@ -276,8 +322,19 @@ class DatabaseService {
         await deleteDoc(doc(this.firestore, 'apps', id));
         return;
       } catch (e) {
-        console.error("Firestore deleteApp failed, deleting locally", e);
+        console.error("Firestore deleteApp failed, deleting on server", e);
       }
+    }
+
+    try {
+      const res = await fetch(`/api/apps/${encodeURIComponent(id)}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        return;
+      }
+    } catch (e) {
+      console.warn("Failed to delete app from server, deleting locally", e);
     }
 
     let apps = this.getLocalApps();
@@ -294,8 +351,19 @@ class DatabaseService {
         });
         return;
       } catch (e) {
-        console.error("Firestore incrementDownloads failed, updating locally", e);
+        console.error("Firestore incrementDownloads failed, incrementing on server", e);
       }
+    }
+
+    try {
+      const res = await fetch(`/api/apps/${encodeURIComponent(id)}/download`, {
+        method: "POST"
+      });
+      if (res.ok) {
+        return;
+      }
+    } catch (e) {
+      console.warn("Failed to increment downloads on server, incrementing locally", e);
     }
 
     const apps = this.getLocalApps();

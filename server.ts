@@ -3,6 +3,9 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import fs from "fs";
+import { INITIAL_APPS } from "./src/data/initialApps";
+import { AppModel } from "./src/types";
 
 dotenv.config();
 
@@ -141,6 +144,160 @@ Make it sound professional, modern, and in line with high-quality Play Store edi
   } catch (error: any) {
     console.error("AI Description Generator Error:", error);
     res.status(500).json({ error: error.message || "An error occurred with Gemini AI." });
+  }
+});
+
+// --- Server-Side Persistent JSON Database for UMN Play Store ---
+const DB_FILE_PATH = path.join(process.cwd(), "apps_db.json");
+
+// Helper to get all apps
+function getAppsFromDb(): AppModel[] {
+  try {
+    if (fs.existsSync(DB_FILE_PATH)) {
+      const data = fs.readFileSync(DB_FILE_PATH, "utf-8");
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error("Error reading apps DB file, using fallback:", error);
+  }
+  
+  // Seed file if it doesn't exist
+  try {
+    fs.writeFileSync(DB_FILE_PATH, JSON.stringify(INITIAL_APPS, null, 2), "utf-8");
+  } catch (e) {
+    console.error("Failed to seed apps DB file:", e);
+  }
+  return INITIAL_APPS as AppModel[];
+}
+
+// Helper to save all apps
+function saveAppsToDb(apps: AppModel[]) {
+  try {
+    fs.writeFileSync(DB_FILE_PATH, JSON.stringify(apps, null, 2), "utf-8");
+  } catch (error) {
+    console.error("Error writing apps DB file:", error);
+  }
+}
+
+// 1. Get all apps
+app.get("/api/apps", (req, res) => {
+  try {
+    const apps = getAppsFromDb();
+    res.json(apps);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || "Failed to load apps" });
+  }
+});
+
+// 2. Get app by ID
+app.get("/api/apps/:id", (req, res) => {
+  try {
+    const apps = getAppsFromDb();
+    const appItem = apps.find(a => a.id === req.params.id);
+    if (!appItem) {
+      return res.status(404).json({ error: "App not found" });
+    }
+    res.json(appItem);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || "Failed to retrieve app" });
+  }
+});
+
+// 3. Add app
+app.post("/api/apps", (req, res) => {
+  try {
+    const appData = req.body;
+    if (!appData.name || !appData.developer || !appData.category) {
+      return res.status(400).json({ error: "Name, developer, and category are required." });
+    }
+    
+    const id = appData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `app-${Date.now()}`;
+    const apps = getAppsFromDb();
+    
+    // Ensure unique ID
+    let finalId = id;
+    if (apps.some(a => a.id === id)) {
+      finalId = `${id}-${Date.now()}`;
+    }
+    
+    const newApp: AppModel = {
+      ...appData,
+      id: finalId,
+      downloads: appData.downloads || 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: appData.status || 'published',
+      rating: appData.rating || 4.5
+    };
+    
+    apps.unshift(newApp);
+    saveAppsToDb(apps);
+    res.status(201).json(newApp);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || "Failed to save app" });
+  }
+});
+
+// 4. Update app
+app.put("/api/apps/:id", (req, res) => {
+  try {
+    const { id } = req.params;
+    const updatedData = req.body;
+    const apps = getAppsFromDb();
+    
+    const index = apps.findIndex(a => a.id === id);
+    if (index === -1) {
+      return res.status(404).json({ error: "App not found" });
+    }
+    
+    const cleanUpdate = {
+      ...updatedData,
+      updatedAt: new Date().toISOString()
+    };
+    
+    apps[index] = { ...apps[index], ...cleanUpdate };
+    saveAppsToDb(apps);
+    res.json(apps[index]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || "Failed to update app" });
+  }
+});
+
+// 5. Delete app
+app.delete("/api/apps/:id", (req, res) => {
+  try {
+    const { id } = req.params;
+    let apps = getAppsFromDb();
+    
+    const index = apps.findIndex(a => a.id === id);
+    if (index === -1) {
+      return res.status(404).json({ error: "App not found" });
+    }
+    
+    apps = apps.filter(a => a.id !== id);
+    saveAppsToDb(apps);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || "Failed to delete app" });
+  }
+});
+
+// 6. Download (Increment Downloads)
+app.post("/api/apps/:id/download", (req, res) => {
+  try {
+    const { id } = req.params;
+    const apps = getAppsFromDb();
+    
+    const index = apps.findIndex(a => a.id === id);
+    if (index === -1) {
+      return res.status(404).json({ error: "App not found" });
+    }
+    
+    apps[index].downloads = (apps[index].downloads || 0) + 1;
+    saveAppsToDb(apps);
+    res.json(apps[index]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || "Failed to increment download count" });
   }
 });
 

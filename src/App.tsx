@@ -25,9 +25,17 @@ export default function App() {
   
   // Dark mode selector
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem('UMN_APP_STORE_THEME');
-    if (saved) return saved === 'dark';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    try {
+      const saved = localStorage.getItem('UMN_APP_STORE_THEME');
+      if (saved) return saved === 'dark';
+    } catch (e) {
+      console.warn("localStorage is not accessible for theme preferences.");
+    }
+    try {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    } catch (e) {
+      return false;
+    }
   });
 
   // 1. Core theme applicator
@@ -35,10 +43,14 @@ export default function App() {
     const root = window.document.documentElement;
     if (isDarkMode) {
       root.classList.add('dark');
-      localStorage.setItem('UMN_APP_STORE_THEME', 'dark');
+      try {
+        localStorage.setItem('UMN_APP_STORE_THEME', 'dark');
+      } catch (e) {}
     } else {
       root.classList.remove('dark');
-      localStorage.setItem('UMN_APP_STORE_THEME', 'light');
+      try {
+        localStorage.setItem('UMN_APP_STORE_THEME', 'light');
+      } catch (e) {}
     }
   }, [isDarkMode]);
 

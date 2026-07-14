@@ -13,6 +13,36 @@ const CONFIG_KEY = 'UMN_FIREBASE_CONFIG';
 const LOCAL_DB_KEY = 'UMN_APPS_DB';
 const ADMIN_USER_KEY = 'UMN_ADMIN_USER';
 
+// Safe localStorage fallback interface for restricted/sandboxed iframe environments
+class MemoryStorage {
+  private store: Record<string, string> = {};
+  getItem(key: string): string | null {
+    return this.store[key] || null;
+  }
+  setItem(key: string, value: string): void {
+    this.store[key] = value;
+  }
+  removeItem(key: string): void {
+    delete this.store[key];
+  }
+}
+
+let safeStorage: {
+  getItem: (key: string) => string | null;
+  setItem: (key: string, value: string) => void;
+  removeItem: (key: string) => void;
+};
+
+try {
+  const testKey = '__storage_test__';
+  window.localStorage.setItem(testKey, testKey);
+  window.localStorage.removeItem(testKey);
+  safeStorage = window.localStorage;
+} catch (e) {
+  console.warn("localStorage is not accessible (likely due to sandbox iframe restrictions). Falling back to in-memory store.");
+  safeStorage = new MemoryStorage();
+}
+
 class DatabaseService {
   private app: FirebaseApp | null = null;
   private auth: Auth | null = null;
@@ -46,7 +76,7 @@ class DatabaseService {
 
     // 2. Fallback to LocalStorage (Useful for instant web-interface settings overrides)
     try {
-      const saved = localStorage.getItem(CONFIG_KEY);
+      const saved = safeStorage.getItem(CONFIG_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed.apiKey && !parsed.apiKey.includes('MY_') && !parsed.apiKey.includes('placeholder')) {
@@ -64,10 +94,14 @@ class DatabaseService {
   }
 
   public saveFirebaseConfig(config: FirebaseConfigType | null) {
-    if (config) {
-      localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
-    } else {
-      localStorage.removeItem(CONFIG_KEY);
+    try {
+      if (config) {
+        safeStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+      } else {
+        safeStorage.removeItem(CONFIG_KEY);
+      }
+    } catch (e) {
+      console.error("Failed to save Firebase config", e);
     }
     // Reload page to reinitialize
     window.location.reload();
@@ -101,15 +135,19 @@ class DatabaseService {
   }
 
   private initLocalDB() {
-    if (!localStorage.getItem(LOCAL_DB_KEY)) {
-      localStorage.setItem(LOCAL_DB_KEY, JSON.stringify(INITIAL_APPS));
+    try {
+      if (!safeStorage.getItem(LOCAL_DB_KEY)) {
+        safeStorage.setItem(LOCAL_DB_KEY, JSON.stringify(INITIAL_APPS));
+      }
+    } catch (e) {
+      console.error("Failed to initialize local DB in safeStorage", e);
     }
   }
 
   // --- Local Database Helpers ---
   private getLocalApps(): AppModel[] {
     try {
-      const data = localStorage.getItem(LOCAL_DB_KEY);
+      const data = safeStorage.getItem(LOCAL_DB_KEY);
       return data ? JSON.parse(data) : INITIAL_APPS;
     } catch (e) {
       return INITIAL_APPS;
@@ -117,7 +155,11 @@ class DatabaseService {
   }
 
   private saveLocalApps(apps: AppModel[]) {
-    localStorage.setItem(LOCAL_DB_KEY, JSON.stringify(apps));
+    try {
+      safeStorage.setItem(LOCAL_DB_KEY, JSON.stringify(apps));
+    } catch (e) {
+      console.error("Failed to save local apps in safeStorage", e);
+    }
   }
 
   // --- Unified App APIs ---
@@ -285,13 +327,17 @@ class DatabaseService {
         setTimeout(() => {
           if (email === 'admin@umn.edu' && password === 'admin123') {
             const mockUser = { uid: 'mock-admin-id', email: 'admin@umn.edu' };
-            localStorage.setItem(ADMIN_USER_KEY, JSON.stringify(mockUser));
+            try {
+              safeStorage.setItem(ADMIN_USER_KEY, JSON.stringify(mockUser));
+            } catch (e) {}
             this.notifyAuthListeners(mockUser);
             resolve(mockUser);
           } else if (email.startsWith('admin') && password.length >= 6) {
             // General admin logins are also supported for flexibility
             const mockUser = { uid: `mock-id-${Date.now()}`, email };
-            localStorage.setItem(ADMIN_USER_KEY, JSON.stringify(mockUser));
+            try {
+              safeStorage.setItem(ADMIN_USER_KEY, JSON.stringify(mockUser));
+            } catch (e) {}
             this.notifyAuthListeners(mockUser);
             resolve(mockUser);
           } else {
@@ -311,7 +357,9 @@ class DatabaseService {
       }
     }
     
-    localStorage.removeItem(ADMIN_USER_KEY);
+    try {
+      safeStorage.removeItem(ADMIN_USER_KEY);
+    } catch (e) {}
     this.notifyAuthListeners(null);
   }
 
@@ -323,7 +371,7 @@ class DatabaseService {
       }
     }
     try {
-      const saved = localStorage.getItem(ADMIN_USER_KEY);
+      const saved = safeStorage.getItem(ADMIN_USER_KEY);
       return saved ? JSON.parse(saved) : null;
     } catch (e) {
       return null;
@@ -341,10 +389,14 @@ class DatabaseService {
       unsubscribeFirebase = onAuthStateChanged(this.auth, (user: FirebaseUser | null) => {
         if (user) {
           const u = { uid: user.uid, email: user.email || '' };
-          localStorage.setItem(ADMIN_USER_KEY, JSON.stringify(u));
+          try {
+            safeStorage.setItem(ADMIN_USER_KEY, JSON.stringify(u));
+          } catch (e) {}
           callback(u);
         } else {
-          localStorage.removeItem(ADMIN_USER_KEY);
+          try {
+            safeStorage.removeItem(ADMIN_USER_KEY);
+          } catch (e) {}
           callback(null);
         }
       });

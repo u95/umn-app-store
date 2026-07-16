@@ -46,7 +46,14 @@ try {
 // Dynamically resolve full API URL for compiled standalone Android APKs and nested frames
 export const getApiUrl = (path: string): string => {
   const protocol = window.location.protocol;
-  const origin = window.location.origin;
+  const hostname = window.location.hostname;
+
+  const defaultDeployedUrl = "https://ais-pre-lylxthadxlxgt6af2lv63x-944323294103.asia-southeast1.run.app";
+
+  // If hosted on GitHub Pages or custom standalone external client, route directly to Cloud Run
+  if (hostname.endsWith('github.io')) {
+    return `${defaultDeployedUrl}${path}`;
+  }
 
   // If running in a web browser context (with standard http/https), use standard relative paths
   // to ensure local dev server and sandbox previews work seamlessly on their respective hosts.
@@ -62,8 +69,6 @@ export const getApiUrl = (path: string): string => {
     }
   } catch (e) {}
 
-  // Fallback to the live production server address
-  const defaultDeployedUrl = "https://ais-pre-lylxthadxlxgt6af2lv63x-944323294103.asia-southeast1.run.app";
   return `${defaultDeployedUrl}${path}`;
 };
 
@@ -225,12 +230,25 @@ class DatabaseService {
     }
   }
 
+  // Helper utility to race an asynchronous promise against a timeout limit
+  private async withTimeout<T>(promise: Promise<T>, ms = 3500): Promise<T> {
+    let timeoutId: any;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error(`Operation timed out after ${ms}ms`));
+      }, ms);
+    });
+    return Promise.race([promise, timeoutPromise]).finally(() => {
+      clearTimeout(timeoutId);
+    });
+  }
+
   // --- Unified App APIs ---
   public async getApps(): Promise<AppModel[]> {
     await this.ensureConfigLoaded();
     if (this.isFirebaseConnected() && this.firestore) {
       try {
-        const querySnapshot = await getDocs(collection(this.firestore, 'apps'));
+        const querySnapshot = await this.withTimeout(getDocs(collection(this.firestore, 'apps')));
         const list: AppModel[] = [];
         querySnapshot.forEach((docSnap) => {
           list.push({ id: docSnap.id, ...docSnap.data() } as AppModel);
@@ -273,7 +291,7 @@ class DatabaseService {
     if (this.isFirebaseConnected() && this.firestore) {
       try {
         const docRef = doc(this.firestore, 'apps', id);
-        const docSnap = await getDoc(docRef);
+        const docSnap = await this.withTimeout(getDoc(docRef));
         if (docSnap.exists()) {
           return { id: docSnap.id, ...docSnap.data() } as AppModel;
         }

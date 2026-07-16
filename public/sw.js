@@ -1,4 +1,4 @@
-const CACHE_NAME = 'umn-play-store-v10';
+const CACHE_NAME = 'umn-play-store-v11';
 
 const PRECACHE_ASSETS = [
   './',

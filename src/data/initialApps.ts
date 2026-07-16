@@ -166,6 +166,29 @@ export const INITIAL_APPS: AppModel[] = [
     trending: false,
     updatedAt: "2026-05-01T14:00:00Z",
     reviewsCount: 9
+  },
+  {
+    id: "smart-utility-pro",
+    name: "UMN Smart Utility Pro",
+    developer: "UMN Tech Labs",
+    version: "1.5.0",
+    category: "Tools",
+    description: "UMN Smart Utility Pro is the ultimate Swiss Army knife utility app designed specifically for the UMN Ministry and student community. Combining multiple vital campus utilities into a single, high-performance package, this app features a dynamic offline-capable campus compass, a real-time devotional event scheduler, and security toolkit helpers. Track daily campus news, monitor private prayer meeting schedules, and access instant tools such as local text converters, high-speed scanner links, and quick-note boards with top-grade offline persistence.",
+    icon: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=150&h=150&q=80",
+    apk: "https://github.com/umnministry/smart-utility/releases/download/v1.5.0/smart-utility-pro.apk",
+    screenshots: [
+      "https://images.unsplash.com/photo-1551650975-87deedd944c3?auto=format&fit=crop&w=600&h=1000&q=80",
+      "https://images.unsplash.com/photo-1565630916779-e303be97b6f5?auto=format&fit=crop&w=600&h=1000&q=80"
+    ],
+    downloads: 720,
+    rating: 4.8,
+    size: "10.2 MB",
+    createdAt: "2026-07-01T12:00:00Z",
+    status: "published",
+    featured: true,
+    trending: true,
+    updatedAt: "2026-07-10T15:30:00Z",
+    reviewsCount: 18
   }
 ];
 
@@ -181,5 +204,9 @@ export const MOCK_REVIEWS: Record<string, ReviewModel[]> = {
   ],
   "christian-trivia-quest": [
     { id: "r6", userName: "Elijah Smith", rating: 5, comment: "Actually super addictive. My classmates and I play during breaks. Teaches scripture in a very engaging way!", date: "2026-07-02" }
+  ],
+  "smart-utility-pro": [
+    { id: "r-ut-1", userName: "Jonathan R.", rating: 5, comment: "This is a lifesaver for campus events. The compass and schedule tools work perfectly offline!", date: "2026-07-12" },
+    { id: "r-ut-2", userName: "Anya Sharma", rating: 5, comment: "Super neat UI. Scanner is lightning fast.", date: "2026-07-11" }
   ]
 };

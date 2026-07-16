@@ -14,6 +14,17 @@ const PORT = 3000;
 
 app.use(express.json());
 
+// Enable CORS for external cross-origin hosting (e.g. GitHub Pages)
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // Initialize Gemini API Client safely (Lazy / conditional on start to prevent crash if not set)
 let aiClient: GoogleGenAI | null = null;
 const getAiClient = (): GoogleGenAI => {

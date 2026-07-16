@@ -149,6 +149,47 @@ Make it sound professional, modern, and in line with high-quality Play Store edi
 
 // --- Server-Side Persistent JSON Database for UMN Play Store ---
 const DB_FILE_PATH = path.join(process.cwd(), "apps_db.json");
+const CONFIG_FILE_PATH = path.join(process.cwd(), "firebase_config.json");
+
+// Get Firebase configuration dynamically
+app.get("/api/config/firebase", (req, res) => {
+  try {
+    if (fs.existsSync(CONFIG_FILE_PATH)) {
+      const data = fs.readFileSync(CONFIG_FILE_PATH, "utf-8");
+      return res.json(JSON.parse(data));
+    }
+    const envConfig = {
+      apiKey: process.env.VITE_FIREBASE_API_KEY || "",
+      authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || "",
+      projectId: process.env.VITE_FIREBASE_PROJECT_ID || "",
+      storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || "",
+      messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
+      appId: process.env.VITE_FIREBASE_APP_ID || "",
+    };
+    if (envConfig.apiKey && !envConfig.apiKey.includes("placeholder")) {
+      return res.json(envConfig);
+    }
+    res.json({});
+  } catch (error) {
+    console.error("Error reading Firebase config file:", error);
+    res.status(500).json({ error: "Failed to load Firebase configuration" });
+  }
+});
+
+// Save Firebase configuration dynamically
+app.post("/api/config/firebase", (req, res) => {
+  try {
+    const configData = req.body;
+    if (!configData || !configData.apiKey) {
+      return res.status(400).json({ error: "API Key is required" });
+    }
+    fs.writeFileSync(CONFIG_FILE_PATH, JSON.stringify(configData, null, 2), "utf-8");
+    res.json({ success: true, message: "Firebase configuration updated successfully on server" });
+  } catch (error: any) {
+    console.error("Error saving Firebase config file:", error);
+    res.status(500).json({ error: error.message || "Failed to save Firebase configuration" });
+  }
+});
 
 // Helper to get all apps
 function getAppsFromDb(): AppModel[] {

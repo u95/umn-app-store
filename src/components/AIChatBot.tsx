@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { MessageSquare, Send, X, Bot, Sparkles, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { getApiUrl } from "../lib/db";
 
 interface Message {
   role: "user" | "model";
@@ -24,7 +25,7 @@ export default function AIChatBot() {
   useEffect(() => {
     const checkAiStatus = async () => {
       try {
-        const res = await fetch("/api/ai/enabled");
+        const res = await fetch(getApiUrl("/api/ai/enabled"));
         const data = await res.json();
         setHasAiEnabled(data.enabled);
       } catch (e) {
@@ -50,7 +51,7 @@ export default function AIChatBot() {
     setIsTyping(true);
 
     try {
-      const res = await fetch("/api/ai/chat", {
+      const res = await fetch(getApiUrl("/api/ai/chat"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

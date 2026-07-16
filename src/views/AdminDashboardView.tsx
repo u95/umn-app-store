@@ -10,6 +10,7 @@ import {
   X, HelpCircle, ArrowUpRight, AlertCircle, RefreshCw, Zap, Sparkles
 } from 'lucide-react';
 import { AppModel, CategoryType } from '../types';
+import { getApiUrl } from '../lib/db';
 
 interface AdminDashboardViewProps {
   apps: AppModel[];
@@ -66,7 +67,7 @@ export default function AdminDashboardView({
     }
     setIsGeneratingDescription(true);
     try {
-      const res = await fetch("/api/ai/generate-description", {
+      const res = await fetch(getApiUrl("/api/ai/generate-description"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -43,12 +43,34 @@ try {
   safeStorage = new MemoryStorage();
 }
 
+// Dynamically resolve full API URL for compiled standalone Android APKs and nested frames
+export const getApiUrl = (path: string): string => {
+  const origin = window.location.origin;
+  // If running in a real browser (not localhost / file:// / app:// / 127.0.0.1)
+  if (origin && origin.startsWith('http') && !origin.includes('localhost:') && !origin.includes('127.0.0.1') && !origin.includes('::1')) {
+    return `${origin}${path}`;
+  }
+  
+  // Try retrieving a manually set host overriding standard defaults
+  try {
+    const savedHost = safeStorage.getItem('UMN_API_HOST');
+    if (savedHost) {
+      return `${savedHost}${path}`;
+    }
+  } catch (e) {}
+
+  // Fallback to the live production server address
+  const defaultDeployedUrl = "https://ais-pre-lylxthadxlxgt6af2lv63x-944323294103.asia-southeast1.run.app";
+  return `${defaultDeployedUrl}${path}`;
+};
+
 class DatabaseService {
   private app: FirebaseApp | null = null;
   private auth: Auth | null = null;
   private firestore: Firestore | null = null;
   private config: FirebaseConfigType | null = null;
   private authListeners: ((user: { uid: string; email: string } | null) => void)[] = [];
+  private configLoadedPromise: Promise<void> | null = null;
 
   constructor() {
     this.loadConfig();
@@ -89,16 +111,54 @@ class DatabaseService {
     }
   }
 
+  public async ensureConfigLoaded() {
+    if (this.config) return;
+    if (this.configLoadedPromise) return this.configLoadedPromise;
+
+    this.configLoadedPromise = (async () => {
+      try {
+        const res = await fetch(getApiUrl("/api/config/firebase"));
+        if (res.ok) {
+          const serverConfig = await res.json();
+          if (serverConfig && serverConfig.apiKey && !serverConfig.apiKey.includes('placeholder')) {
+            this.config = serverConfig;
+            this.initFirebase();
+            console.log("Dynamically initialized Firebase from server config.");
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to retrieve Firebase config from server, using local fallback", e);
+      }
+    })();
+
+    return this.configLoadedPromise;
+  }
+
   public getFirebaseConfig(): FirebaseConfigType | null {
     return this.config;
   }
 
-  public saveFirebaseConfig(config: FirebaseConfigType | null) {
+  public async saveFirebaseConfig(config: FirebaseConfigType | null) {
     try {
       if (config) {
         safeStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+        
+        // Also save on server for syncing to other devices
+        await fetch(getApiUrl("/api/config/firebase"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(config)
+        }).catch((err) => {
+          console.error("Failed to post config to server:", err);
+        });
       } else {
         safeStorage.removeItem(CONFIG_KEY);
+        // Clear on server
+        await fetch(getApiUrl("/api/config/firebase"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ apiKey: "" })
+        }).catch(() => {});
       }
     } catch (e) {
       console.error("Failed to save Firebase config", e);
@@ -164,6 +224,7 @@ class DatabaseService {
 
   // --- Unified App APIs ---
   public async getApps(): Promise<AppModel[]> {
+    await this.ensureConfigLoaded();
     if (this.isFirebaseConnected() && this.firestore) {
       try {
         const querySnapshot = await getDocs(collection(this.firestore, 'apps'));
@@ -192,7 +253,7 @@ class DatabaseService {
 
   private async getServerOrLocalApps(): Promise<AppModel[]> {
     try {
-      const res = await fetch("/api/apps");
+      const res = await fetch(getApiUrl("/api/apps"));
       if (res.ok) {
         const serverApps = await res.json();
         this.saveLocalApps(serverApps);
@@ -205,6 +266,7 @@ class DatabaseService {
   }
 
   public async getAppById(id: string): Promise<AppModel | null> {
+    await this.ensureConfigLoaded();
     if (this.isFirebaseConnected() && this.firestore) {
       try {
         const docRef = doc(this.firestore, 'apps', id);
@@ -224,7 +286,7 @@ class DatabaseService {
 
   private async getServerOrLocalAppById(id: string): Promise<AppModel | null> {
     try {
-      const res = await fetch(`/api/apps/${encodeURIComponent(id)}`);
+      const res = await fetch(getApiUrl(`/api/apps/${encodeURIComponent(id)}`));
       if (res.ok) {
         return await res.json();
       }
@@ -236,6 +298,7 @@ class DatabaseService {
   }
 
   public async addApp(appData: Omit<AppModel, 'id'>): Promise<string> {
+    await this.ensureConfigLoaded();
     const id = appData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `app-${Date.now()}`;
     
     const newApp: AppModel = {
@@ -258,7 +321,7 @@ class DatabaseService {
     }
 
     try {
-      const res = await fetch("/api/apps", {
+      const res = await fetch(getApiUrl("/api/apps"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(appData)
@@ -280,6 +343,7 @@ class DatabaseService {
   }
 
   public async updateApp(id: string, updatedData: Partial<AppModel>): Promise<void> {
+    await this.ensureConfigLoaded();
     const cleanUpdate = {
       ...updatedData,
       updatedAt: new Date().toISOString()
@@ -296,7 +360,7 @@ class DatabaseService {
     }
 
     try {
-      const res = await fetch(`/api/apps/${encodeURIComponent(id)}`, {
+      const res = await fetch(getApiUrl(`/api/apps/${encodeURIComponent(id)}`), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedData)
@@ -317,6 +381,7 @@ class DatabaseService {
   }
 
   public async deleteApp(id: string): Promise<void> {
+    await this.ensureConfigLoaded();
     if (this.isFirebaseConnected() && this.firestore) {
       try {
         await deleteDoc(doc(this.firestore, 'apps', id));
@@ -327,7 +392,7 @@ class DatabaseService {
     }
 
     try {
-      const res = await fetch(`/api/apps/${encodeURIComponent(id)}`, {
+      const res = await fetch(getApiUrl(`/api/apps/${encodeURIComponent(id)}`), {
         method: "DELETE"
       });
       if (res.ok) {
@@ -343,6 +408,7 @@ class DatabaseService {
   }
 
   public async incrementDownloads(id: string): Promise<void> {
+    await this.ensureConfigLoaded();
     if (this.isFirebaseConnected() && this.firestore) {
       try {
         const docRef = doc(this.firestore, 'apps', id);
@@ -356,7 +422,7 @@ class DatabaseService {
     }
 
     try {
-      const res = await fetch(`/api/apps/${encodeURIComponent(id)}/download`, {
+      const res = await fetch(getApiUrl(`/api/apps/${encodeURIComponent(id)}/download`), {
         method: "POST"
       });
       if (res.ok) {
@@ -376,6 +442,7 @@ class DatabaseService {
 
   // --- Authentication APIs ---
   public async login(email: string, password: string): Promise<{ uid: string; email: string }> {
+    await this.ensureConfigLoaded();
     if (this.isFirebaseConnected() && this.auth) {
       try {
         const userCredential = await signInWithEmailAndPassword(this.auth, email, password);

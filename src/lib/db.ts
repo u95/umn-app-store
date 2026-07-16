@@ -261,6 +261,21 @@ class DatabaseService {
             await setDoc(doc(this.firestore, 'apps', app.id), app);
             list.push(app);
           }
+        } else {
+          // Dynamic self-healing: if any baseline apps from INITIAL_APPS are missing in Firestore, sync them!
+          const existingIds = new Set(list.map(a => a.id));
+          const missingApps = INITIAL_APPS.filter(app => !existingIds.has(app.id));
+          if (missingApps.length > 0) {
+            console.log(`Syncing ${missingApps.length} missing baseline apps to Firestore...`);
+            for (const app of missingApps) {
+              try {
+                await setDoc(doc(this.firestore, 'apps', app.id), app);
+                list.push(app);
+              } catch (err) {
+                console.error(`Failed to sync missing app ${app.id} to Firestore:`, err);
+              }
+            }
+          }
         }
         return list;
       } catch (e) {
@@ -283,7 +298,17 @@ class DatabaseService {
     } catch (e) {
       console.warn("Failed to retrieve apps from server, fallback to local storage", e);
     }
-    return this.getLocalApps();
+    
+    // Ensure all bundled baseline apps are available locally
+    const local = this.getLocalApps();
+    const localIds = new Set(local.map(a => a.id));
+    const merged = [...local];
+    for (const app of INITIAL_APPS) {
+      if (!localIds.has(app.id)) {
+        merged.push(app);
+      }
+    }
+    return merged;
   }
 
   public async getAppById(id: string): Promise<AppModel | null> {
@@ -294,6 +319,17 @@ class DatabaseService {
         const docSnap = await this.withTimeout(getDoc(docRef));
         if (docSnap.exists()) {
           return { id: docSnap.id, ...docSnap.data() } as AppModel;
+        }
+        // If it exists in INITIAL_APPS but not Firestore, auto-sync it to Firestore!
+        const baselineApp = INITIAL_APPS.find(a => a.id === id);
+        if (baselineApp) {
+          console.log(`Auto-syncing single missing app ${id} to Firestore...`);
+          try {
+            await setDoc(docRef, baselineApp);
+            return baselineApp;
+          } catch (err) {
+            console.error(`Failed to auto-sync missing app ${id} to Firestore:`, err);
+          }
         }
         return null;
       } catch (e) {
@@ -315,7 +351,7 @@ class DatabaseService {
       console.warn("Failed to get app from server, fallback to local storage", e);
     }
     const apps = this.getLocalApps();
-    return apps.find(a => a.id === id) || null;
+    return apps.find(a => a.id === id) || INITIAL_APPS.find(a => a.id === id) || null;
   }
 
   public async addApp(appData: Omit<AppModel, 'id'>): Promise<string> {

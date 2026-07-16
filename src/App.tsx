@@ -15,6 +15,31 @@ import AdminDashboardView from './views/AdminDashboardView';
 import AIChatBot from './components/AIChatBot';
 import InstallGuideModal from './components/InstallGuideModal';
 
+// Helper utility to convert a Google Drive file viewer/sharing link into a direct download link
+function convertDriveLink(url: string): string {
+  if (!url) return '';
+  const fileDRegex = /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/;
+  const openIdRegex = /drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/;
+  const ucIdRegex = /drive\.google\.com\/uc\?id=([a-zA-Z0-9_-]+)/;
+  
+  let fileId = '';
+  if (fileDRegex.test(url)) {
+    const match = url.match(fileDRegex);
+    if (match) fileId = match[1];
+  } else if (openIdRegex.test(url)) {
+    const match = url.match(openIdRegex);
+    if (match) fileId = match[1];
+  } else if (ucIdRegex.test(url)) {
+    const match = url.match(ucIdRegex);
+    if (match) fileId = match[1];
+  }
+
+  if (fileId) {
+    return `https://docs.google.com/uc?export=download&id=${fileId}`;
+  }
+  return url;
+}
+
 export default function App() {
   // Sync state managers
   const [apps, setApps] = useState<AppModel[]>([]);
@@ -162,13 +187,21 @@ export default function App() {
       return;
     }
 
+    const rawUrl = app.apk;
+    const isGoogleDrive = rawUrl.includes('drive.google.com');
+    const processedUrl = isGoogleDrive ? convertDriveLink(rawUrl) : rawUrl;
+
     try {
-      // 1. Trigger browser download synchronously FIRST using direct window assignment.
+      // 1. Trigger browser download synchronously.
       // In standalone PWAs on Android, direct assignment is the most robust way to prompt 
-      // the system's native download manager or open the link in the native browser,
-      // avoiding dynamic "_blank" pop-up blocker constraints. Since APKs are binary files,
-      // the browser will start downloading it without navigating away from the current page.
-      window.location.href = app.apk;
+      // the system's native download manager or open the link in the native browser.
+      // If it is a Google Drive link, a non-APK website URL, or we are currently embedded in an iframe (AI Studio preview),
+      // we open in a new window/tab to prevent iframe blockage and allow direct system download prompts.
+      if (isGoogleDrive || !processedUrl.toLowerCase().endsWith('.apk') || window.self !== window.top) {
+        window.open(processedUrl, '_blank');
+      } else {
+        window.location.href = processedUrl;
+      }
 
       // 2. Increment database count in the background (non-blocking)
       dbService.incrementDownloads(app.id)
@@ -184,7 +217,7 @@ export default function App() {
       console.error("Failed to execute direct APK download routine, using anchor fallback:", e);
       try {
         const link = document.createElement('a');
-        link.href = app.apk;
+        link.href = processedUrl;
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
         document.body.appendChild(link);

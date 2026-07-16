@@ -214,7 +214,9 @@ export default function DetailsView({
             
             <div className="flex items-center justify-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500 font-medium">
               <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              <span>Verified Secure APK Hosting (GitHub Releases)</span>
+              <span>
+                Verified Secure Link ({app.apk && app.apk.includes('drive.google.com') ? 'Google Drive Cloud' : 'GitHub Releases'})
+              </span>
             </div>
           </div>
 

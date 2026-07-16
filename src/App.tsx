@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import { dbService } from './lib/db';
 import { AppModel } from './types';
+import { INITIAL_APPS } from './data/initialApps';
 import Navbar from './components/Navbar';
 import HomeView from './views/HomeView';
 import DetailsView from './views/DetailsView';
@@ -91,9 +92,15 @@ export default function App() {
     setIsLoading(true);
     try {
       const activeApps = await dbService.getApps();
-      setApps(activeApps);
+      if (activeApps && activeApps.length > 0) {
+        setApps(activeApps);
+      } else {
+        console.warn("Retrieved empty apps list, falling back to static INITIAL_APPS catalog.");
+        setApps(INITIAL_APPS);
+      }
     } catch (e) {
-      console.error("Failed to load apps list", e);
+      console.error("Failed to load apps list from database, using INITIAL_APPS fallback.", e);
+      setApps(INITIAL_APPS);
     } finally {
       setIsLoading(false);
     }

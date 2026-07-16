@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ArrowLeft, Star, Download, ShieldCheck, Share2, Copy, Check, MessageSquare, Sparkles, Box } from 'lucide-react';
 import { AppModel, ReviewModel } from '../types';
-import { MOCK_REVIEWS } from '../data/initialApps';
+import { INITIAL_APPS, MOCK_REVIEWS } from '../data/initialApps';
 import AppCard from '../components/AppCard';
 
 interface DetailsViewProps {
@@ -30,7 +30,10 @@ export default function DetailsView({
 
   // Retrieve current app details
   const app = useMemo(() => {
-    return apps.find(a => a.id === appId) || null;
+    const found = apps.find(a => a.id === appId);
+    if (found) return found;
+    // Defensive self-healing fallback to preloaded baseline apps
+    return INITIAL_APPS.find(a => a.id === appId) || null;
   }, [apps, appId]);
 
   // Track page views and reset scroll top on app change

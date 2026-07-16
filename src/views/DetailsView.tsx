@@ -12,6 +12,7 @@ import AppCard from '../components/AppCard';
 interface DetailsViewProps {
   appId: string;
   apps: AppModel[];
+  isLoading?: boolean;
   onBack: () => void;
   onAppClick: (id: string) => void;
   onDownloadClick: (app: AppModel) => void;
@@ -20,6 +21,7 @@ interface DetailsViewProps {
 export default function DetailsView({
   appId,
   apps,
+  isLoading = false,
   onBack,
   onAppClick,
   onDownloadClick
@@ -67,6 +69,15 @@ export default function DetailsView({
       .filter(a => a.category === app.category && a.id !== app.id && a.status === 'published')
       .slice(0, 4);
   }, [apps, app]);
+
+  if (isLoading) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-32 text-center space-y-4 flex flex-col items-center justify-center">
+        <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-zinc-500 dark:text-zinc-400 text-sm font-medium">Loading application details...</p>
+      </div>
+    );
+  }
 
   if (!app) {
     return (

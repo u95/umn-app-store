@@ -244,6 +244,7 @@ export default function App() {
           <DetailsView
             appId={selectedAppId}
             apps={apps}
+            isLoading={isLoading}
             onBack={() => handleNavigate('home')}
             onAppClick={(id) => handleNavigate('app', { id })}
             onDownloadClick={handleDownloadApk}

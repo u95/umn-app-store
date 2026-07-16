@@ -45,10 +45,13 @@ try {
 
 // Dynamically resolve full API URL for compiled standalone Android APKs and nested frames
 export const getApiUrl = (path: string): string => {
+  const protocol = window.location.protocol;
   const origin = window.location.origin;
-  // If running in a real browser (not localhost / file:// / app:// / 127.0.0.1)
-  if (origin && origin.startsWith('http') && !origin.includes('localhost:') && !origin.includes('127.0.0.1') && !origin.includes('::1')) {
-    return `${origin}${path}`;
+
+  // If running in a web browser context (with standard http/https), use standard relative paths
+  // to ensure local dev server and sandbox previews work seamlessly on their respective hosts.
+  if (protocol === 'http:' || protocol === 'https:') {
+    return path;
   }
   
   // Try retrieving a manually set host overriding standard defaults

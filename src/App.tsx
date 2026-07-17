@@ -297,6 +297,7 @@ export default function App() {
             onLoginSuccess={(user) => setCurrentUser(user)}
             onNavigate={handleNavigate}
             onLoginSubmit={dbService.login.bind(dbService)}
+            onRegisterSubmit={dbService.register.bind(dbService)}
           />
         )}
 
@@ -316,6 +317,7 @@ export default function App() {
               onLoginSuccess={(user) => setCurrentUser(user)}
               onNavigate={handleNavigate}
               onLoginSubmit={dbService.login.bind(dbService)}
+              onRegisterSubmit={dbService.register.bind(dbService)}
             />
           )
         )}

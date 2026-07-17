@@ -4,7 +4,7 @@
  */
 
 import { initializeApp, getApps as getFirebaseApps, FirebaseApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged, Auth, User as FirebaseUser } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged, Auth, User as FirebaseUser } from 'firebase/auth';
 import { getFirestore, collection, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, Firestore, increment } from 'firebase/firestore';
 import { AppModel, FirebaseConfigType } from '../types';
 import { INITIAL_APPS } from '../data/initialApps';
@@ -593,6 +593,26 @@ class DatabaseService {
           }
         }, 800);
       });
+    }
+  }
+
+  public async register(email: string, password: string): Promise<{ uid: string; email: string }> {
+    await this.ensureConfigLoaded();
+    if (this.isFirebaseConnected() && this.auth) {
+      try {
+        const userCredential = await createUserWithEmailAndPassword(this.auth, email, password);
+        const user = userCredential.user;
+        return {
+          uid: user.uid,
+          email: user.email || email
+        };
+      } catch (e: any) {
+        console.error("Firebase auth registration failed", e);
+        throw new Error(e.message || "Failed to register via Firebase Authentication.");
+      }
+    } else {
+      // Offline/Mock Auth Mode
+      throw new Error("Registration is only supported when connected to a custom Firebase project. For sandbox/local testing, any email starting with 'admin' is pre-authorized (e.g. admin@umn.edu / admin123).");
     }
   }
 

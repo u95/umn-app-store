@@ -8,6 +8,7 @@ import { ArrowLeft, Star, Download, ShieldCheck, Share2, Copy, Check, MessageSqu
 import { AppModel, ReviewModel } from '../types';
 import { INITIAL_APPS, MOCK_REVIEWS } from '../data/initialApps';
 import AppCard from '../components/AppCard';
+import { dbService } from '../lib/db';
 
 interface DetailsViewProps {
   appId: string;
@@ -27,19 +28,47 @@ export default function DetailsView({
   onDownloadClick
 }: DetailsViewProps) {
   const [copied, setCopied] = useState(false);
+  const [dynamicApp, setDynamicApp] = useState<AppModel | null>(null);
+  const [isFetchingDynamicApp, setIsFetchingDynamicApp] = useState(false);
 
-  // Retrieve current app details
+  // Retrieve current app details with self-healing dynamic fallback
   const app = useMemo(() => {
     const found = apps.find(a => a.id === appId);
     if (found) return found;
+    if (dynamicApp && dynamicApp.id === appId) return dynamicApp;
     // Defensive self-healing fallback to preloaded baseline apps
     return INITIAL_APPS.find(a => a.id === appId) || null;
-  }, [apps, appId]);
+  }, [apps, appId, dynamicApp]);
 
   // Track page views and reset scroll top on app change
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [appId]);
+
+    // Check if we need to fetch the app dynamically because it is missing in the props list
+    const foundInProps = apps.find(a => a.id === appId);
+    const foundInBaseline = INITIAL_APPS.find(a => a.id === appId);
+
+    if (!foundInProps && !foundInBaseline && appId) {
+      setIsFetchingDynamicApp(true);
+      dbService.getAppById(appId)
+        .then((fetched) => {
+          if (fetched) {
+            setDynamicApp(fetched);
+          } else {
+            setDynamicApp(null);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to dynamically fetch app details as fallback:", err);
+          setDynamicApp(null);
+        })
+        .finally(() => {
+          setIsFetchingDynamicApp(false);
+        });
+    } else {
+      setDynamicApp(null);
+    }
+  }, [appId, apps]);
 
   // Gather reviews
   const reviews: ReviewModel[] = useMemo(() => {
@@ -73,7 +102,7 @@ export default function DetailsView({
       .slice(0, 4);
   }, [apps, app]);
 
-  if (isLoading) {
+  if (isLoading || isFetchingDynamicApp) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-32 text-center space-y-4 flex flex-col items-center justify-center">
         <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>

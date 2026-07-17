@@ -7,10 +7,11 @@ import React, { useState, useMemo } from 'react';
 import { 
   LayoutGrid, Plus, Search, LogOut, Trash2, Edit2, Download, Star, 
   Layers, Database, Calendar, AppWindow, FileText, CheckCircle, 
-  X, HelpCircle, ArrowUpRight, AlertCircle, RefreshCw, Zap, Sparkles
+  X, HelpCircle, ArrowUpRight, AlertCircle, RefreshCw, Zap, Sparkles,
+  Sliders, Upload
 } from 'lucide-react';
 import { AppModel, CategoryType } from '../types';
-import { getApiUrl } from '../lib/db';
+import { getApiUrl, dbService } from '../lib/db';
 
 interface AdminDashboardViewProps {
   apps: AppModel[];
@@ -32,10 +33,30 @@ export default function AdminDashboardView({
   currentUser
 }: AdminDashboardViewProps) {
   // Console state tabs
-  const [activeTab, setActiveTab] = useState<'overview' | 'inventory'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'inventory' | 'settings'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'All' | CategoryType>('All');
   
+  // Settings & Sync management states
+  const [apiHost, setApiHost] = useState(() => {
+    try {
+      return localStorage.getItem('UMN_API_HOST') || '';
+    } catch (e) {
+      return '';
+    }
+  });
+
+  const [fbApiKey, setFbApiKey] = useState(() => dbService.getFirebaseConfig()?.apiKey || '');
+  const [fbAuthDomain, setFbAuthDomain] = useState(() => dbService.getFirebaseConfig()?.authDomain || '');
+  const [fbProjectId, setFbProjectId] = useState(() => dbService.getFirebaseConfig()?.projectId || '');
+  const [fbStorageBucket, setFbStorageBucket] = useState(() => dbService.getFirebaseConfig()?.storageBucket || '');
+  const [fbMessagingSenderId, setFbMessagingSenderId] = useState(() => dbService.getFirebaseConfig()?.messagingSenderId || '');
+  const [fbAppId, setFbAppId] = useState(() => dbService.getFirebaseConfig()?.appId || '');
+
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [settingsSuccess, setSettingsSuccess] = useState<string | null>(null);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+
   // Drawer/Modal Form States
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAppId, setEditingAppId] = useState<string | null>(null); // null = Creating, string = Editing
@@ -291,7 +312,7 @@ export default function AdminDashboardView({
       <div className="flex border-b border-zinc-150 dark:border-zinc-850 gap-4">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`pb-3 font-bold text-sm tracking-tight border-b-2 px-1 transition-all flex items-center gap-2 ${
+          className={`pb-3 font-bold text-sm tracking-tight border-b-2 px-1 transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === 'overview'
               ? 'border-green-500 text-green-600 dark:text-green-400'
               : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
@@ -302,7 +323,7 @@ export default function AdminDashboardView({
         </button>
         <button
           onClick={() => setActiveTab('inventory')}
-          className={`pb-3 font-bold text-sm tracking-tight border-b-2 px-1 transition-all flex items-center gap-2 ${
+          className={`pb-3 font-bold text-sm tracking-tight border-b-2 px-1 transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === 'inventory'
               ? 'border-green-500 text-green-600 dark:text-green-400'
               : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
@@ -310,6 +331,17 @@ export default function AdminDashboardView({
         >
           <Database className="w-4.5 h-4.5" />
           <span>App Inventory ({apps.length})</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('settings')}
+          className={`pb-3 font-bold text-sm tracking-tight border-b-2 px-1 transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === 'settings'
+              ? 'border-green-500 text-green-600 dark:text-green-400'
+              : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+          }`}
+        >
+          <Sliders className="w-4.5 h-4.5" />
+          <span>Settings & Sync</span>
         </button>
       </div>
 
@@ -602,6 +634,322 @@ export default function AdminDashboardView({
                 )}
               </tbody>
             </table>
+          </div>
+
+        </div>
+      )}
+
+      {/* VIEW 3: Settings & Sync Management Panel */}
+      {activeTab === 'settings' && (
+        <div className="space-y-6 animate-fade-in">
+          
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-6 sm:p-8 space-y-6">
+            <div>
+              <h2 className="text-xl font-extrabold text-zinc-950 dark:text-white flex items-center gap-2">
+                <Sliders className="w-5.5 h-5.5 text-green-500" />
+                <span>Console Configuration & Sync</span>
+              </h2>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                Configure your API hosts, connect Firestore databases, or export/import application lists.
+              </p>
+            </div>
+
+            {/* Success / Error Messages */}
+            {settingsError && (
+              <div className="flex gap-2 p-4 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 text-red-700 dark:text-red-400 text-xs font-semibold">
+                <AlertCircle className="w-5 h-5 shrink-0 text-red-500" />
+                <span>{settingsError}</span>
+              </div>
+            )}
+            {settingsSuccess && (
+              <div className="flex gap-2 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-xs font-semibold">
+                <CheckCircle className="w-5 h-5 shrink-0 text-emerald-500 animate-bounce" />
+                <span>{settingsSuccess}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Left Column: API Host & Offline Backups */}
+              <div className="space-y-8">
+                
+                {/* Section A: API Connection settings */}
+                <div className="space-y-4">
+                  <div className="border-b border-zinc-100 dark:border-zinc-800/60 pb-2">
+                    <h3 className="text-sm font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">API Connection Setup</h3>
+                    <p className="text-[11px] text-zinc-400 leading-normal">
+                      By default, the store fetches backend apps from the temporary AI Studio workspace URL. Override this if you run your own Express server backend or deployed instance.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 pl-0.5">
+                      UMN API Host URL
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://your-custom-backend.run.app"
+                      value={apiHost}
+                      onChange={(e) => setApiHost(e.target.value)}
+                      className="w-full h-11 px-3 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-850 text-xs font-medium text-zinc-850 dark:text-zinc-100 outline-none focus:border-green-500"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        try {
+                          if (apiHost.trim()) {
+                            // Ensure URL format
+                            new URL(apiHost);
+                            localStorage.setItem('UMN_API_HOST', apiHost.trim());
+                            setSettingsSuccess("API Host override saved successfully! Reloading...");
+                            setTimeout(() => window.location.reload(), 1200);
+                          } else {
+                            localStorage.removeItem('UMN_API_HOST');
+                            setSettingsSuccess("Restored default API host successfully! Reloading...");
+                            setTimeout(() => window.location.reload(), 1200);
+                          }
+                        } catch (e) {
+                          setSettingsError("Please enter a valid URL (including https://)");
+                        }
+                      }}
+                      className="h-10 px-4 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-950 text-xs font-bold cursor-pointer transition-colors"
+                    >
+                      Save API Host URL
+                    </button>
+                    {apiHost && (
+                      <button
+                        onClick={() => {
+                          setApiHost('');
+                          localStorage.removeItem('UMN_API_HOST');
+                          setSettingsSuccess("Restored default API host. Reloading...");
+                          setTimeout(() => window.location.reload(), 1200);
+                        }}
+                        className="h-10 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-500 text-xs font-semibold cursor-pointer transition-colors"
+                      >
+                        Reset to Default
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Section B: Database Backup & Recovery */}
+                <div className="space-y-4">
+                  <div className="border-b border-zinc-100 dark:border-zinc-800/60 pb-2">
+                    <h3 className="text-sm font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">Database Backup & Migration</h3>
+                    <p className="text-[11px] text-zinc-400 leading-normal">
+                      Export your current app list as a JSON file and import it into another environment or browser (e.g., from local dev server to GitHub Pages) to sync your uploaded APKs.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+                    <button
+                      onClick={() => {
+                        try {
+                          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(apps, null, 2));
+                          const downloadAnchor = document.createElement('a');
+                          downloadAnchor.setAttribute("href", dataStr);
+                          downloadAnchor.setAttribute("download", `umn-app-store-catalog-${Date.now()}.json`);
+                          document.body.appendChild(downloadAnchor);
+                          downloadAnchor.click();
+                          downloadAnchor.remove();
+                          setSettingsSuccess("App catalog exported successfully!");
+                          setTimeout(() => setSettingsSuccess(null), 3000);
+                        } catch (e: any) {
+                          setSettingsError("Export failed: " + e.message);
+                        }
+                      }}
+                      className="h-11 px-5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-950 text-zinc-800 dark:text-zinc-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Export Catalog Database (JSON)</span>
+                    </button>
+
+                    <label className="h-11 px-5 rounded-xl bg-green-500 hover:bg-green-600 text-zinc-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all">
+                      <Upload className="w-4 h-4" />
+                      <span>Import Catalog Database (JSON)</span>
+                      <input
+                        type="file"
+                        accept=".json"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+
+                          const reader = new FileReader();
+                          reader.onload = async (event) => {
+                            try {
+                              const parsed = JSON.parse(event.target?.result as string);
+                              if (!Array.isArray(parsed)) {
+                                alert("Invalid format! Must be a JSON array of applications.");
+                                return;
+                              }
+
+                              if (window.confirm(`Are you sure you want to import ${parsed.length} apps? This will add them to your database.`)) {
+                                setIsSavingSettings(true);
+                                let successCount = 0;
+                                for (const app of parsed) {
+                                  try {
+                                    // Strip id to allow auto-generation/safety or keep existing
+                                    const { id, ...appData } = app;
+                                    await onAddApp(appData);
+                                    successCount++;
+                                  } catch (err) {
+                                    console.error("Failed to import individual app:", app.name, err);
+                                  }
+                                }
+                                alert(`Import complete! Successfully added ${successCount} out of ${parsed.length} apps.`);
+                                window.location.reload();
+                              }
+                            } catch (err: any) {
+                              alert("Failed to parse JSON file: " + err.message);
+                            } finally {
+                              setIsSavingSettings(false);
+                            }
+                          };
+                          reader.readAsText(file);
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Right Column: Firebase configuration */}
+              <div className="space-y-4 bg-zinc-50 dark:bg-zinc-950 p-5 sm:p-6 border border-zinc-150 dark:border-zinc-850 rounded-2xl">
+                <div className="border-b border-zinc-200 dark:border-zinc-850 pb-2">
+                  <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full ${dbService.isFirebaseConnected() ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                    <span>Firebase Connection Keys</span>
+                  </h3>
+                  <p className="text-[11px] text-zinc-400 leading-normal mt-1">
+                    Connect the website to your own Firebase Firestore and Auth backend. Once configured, both your local development app and your GitHub Pages site will sync in real time!
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-400 pl-0.5">API KEY</label>
+                    <input
+                      type="text"
+                      placeholder="AIzaSy..."
+                      value={fbApiKey}
+                      onChange={(e) => setFbApiKey(e.target.value)}
+                      className="w-full h-10 px-3 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-mono"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-400 pl-0.5">PROJECT ID</label>
+                    <input
+                      type="text"
+                      placeholder="umn-app-store-1234"
+                      value={fbProjectId}
+                      onChange={(e) => setFbProjectId(e.target.value)}
+                      className="w-full h-10 px-3 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-mono"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-zinc-400 pl-0.5">AUTH DOMAIN</label>
+                      <input
+                        type="text"
+                        placeholder="umn-app-store.firebaseapp.com"
+                        value={fbAuthDomain}
+                        onChange={(e) => setFbAuthDomain(e.target.value)}
+                        className="w-full h-10 px-3 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-[10px] font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-zinc-400 pl-0.5">STORAGE BUCKET</label>
+                      <input
+                        type="text"
+                        placeholder="umn-app-store.appspot.com"
+                        value={fbStorageBucket}
+                        onChange={(e) => setFbStorageBucket(e.target.value)}
+                        className="w-full h-10 px-3 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-[10px] font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-zinc-400 pl-0.5">MESSAGING SENDER ID</label>
+                      <input
+                        type="text"
+                        placeholder="944323294103"
+                        value={fbMessagingSenderId}
+                        onChange={(e) => setFbMessagingSenderId(e.target.value)}
+                        className="w-full h-10 px-3 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-[10px] font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-zinc-400 pl-0.5">APP ID</label>
+                      <input
+                        type="text"
+                        placeholder="1:944323294103:web:7c5c..."
+                        value={fbAppId}
+                        onChange={(e) => setFbAppId(e.target.value)}
+                        className="w-full h-10 px-3 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-[10px] font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-3 flex gap-2 justify-end">
+                  {dbService.isFirebaseConnected() && (
+                    <button
+                      onClick={async () => {
+                        if (window.confirm("Disconnect from Firebase and restore local sandbox mode? Your browser local storage will be used as fallback.")) {
+                          setIsSavingSettings(true);
+                          try {
+                            await dbService.saveFirebaseConfig(null);
+                          } catch (e: any) {
+                            setSettingsError(e.message);
+                            setIsSavingSettings(false);
+                          }
+                        }
+                      }}
+                      className="h-10 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:text-red-500 text-zinc-500 text-xs font-bold cursor-pointer transition-colors"
+                    >
+                      Clear/Disconnect
+                    </button>
+                  )}
+                  <button
+                    disabled={isSavingSettings}
+                    onClick={async () => {
+                      if (!fbApiKey || !fbProjectId) {
+                        setSettingsError("API Key and Project ID are strictly required to initialize Firebase.");
+                        return;
+                      }
+                      setIsSavingSettings(true);
+                      setSettingsError(null);
+                      try {
+                        const newConfig = {
+                          apiKey: fbApiKey.trim(),
+                          authDomain: fbAuthDomain.trim(),
+                          projectId: fbProjectId.trim(),
+                          storageBucket: fbStorageBucket.trim(),
+                          messagingSenderId: fbMessagingSenderId.trim(),
+                          appId: fbAppId.trim()
+                        };
+                        await dbService.saveFirebaseConfig(newConfig);
+                        setSettingsSuccess("Firebase configuration saved successfully! Re-initializing...");
+                      } catch (e: any) {
+                        setSettingsError(e.message || "Failed to save Firebase configuration.");
+                        setIsSavingSettings(false);
+                      }
+                    }}
+                    className="h-10 px-4 rounded-xl bg-green-500 hover:bg-green-600 text-zinc-950 text-xs font-bold cursor-pointer transition-all disabled:opacity-50"
+                  >
+                    {isSavingSettings ? "Saving..." : "Save Firebase Keys"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
           </div>
 
         </div>

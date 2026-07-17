@@ -45,6 +45,14 @@ try {
 
 // Dynamically resolve full API URL for compiled standalone Android APKs and nested frames
 export const getApiUrl = (path: string): string => {
+  // Try retrieving a manually set host overriding standard defaults first
+  try {
+    const savedHost = safeStorage.getItem('UMN_API_HOST');
+    if (savedHost) {
+      return `${savedHost}${path}`;
+    }
+  } catch (e) {}
+
   const protocol = window.location.protocol;
   const hostname = window.location.hostname;
 
@@ -60,14 +68,6 @@ export const getApiUrl = (path: string): string => {
   if (protocol === 'http:' || protocol === 'https:') {
     return path;
   }
-  
-  // Try retrieving a manually set host overriding standard defaults
-  try {
-    const savedHost = safeStorage.getItem('UMN_API_HOST');
-    if (savedHost) {
-      return `${savedHost}${path}`;
-    }
-  } catch (e) {}
 
   return `${defaultDeployedUrl}${path}`;
 };
@@ -230,6 +230,23 @@ class DatabaseService {
     }
   }
 
+  private getCustomUserApps(): AppModel[] {
+    try {
+      const data = safeStorage.getItem('UMN_CUSTOM_USER_APPS');
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  private saveCustomUserApps(apps: AppModel[]) {
+    try {
+      safeStorage.setItem('UMN_CUSTOM_USER_APPS', JSON.stringify(apps));
+    } catch (e) {
+      console.error("Failed to save custom user apps", e);
+    }
+  }
+
   // Helper utility to race an asynchronous promise against a timeout limit
   private async withTimeout<T>(promise: Promise<T>, ms = 3500): Promise<T> {
     let timeoutId: any;
@@ -288,26 +305,40 @@ class DatabaseService {
   }
 
   private async getServerOrLocalApps(): Promise<AppModel[]> {
+    const customUserApps = this.getCustomUserApps();
+    let baseApps: AppModel[] = [];
+
     try {
       const res = await fetch(getApiUrl("/api/apps"));
       if (res.ok) {
-        const serverApps = await res.json();
-        this.saveLocalApps(serverApps);
-        return serverApps;
+        baseApps = await res.json();
+        this.saveLocalApps(baseApps);
+      } else {
+        baseApps = this.getLocalApps();
       }
     } catch (e) {
       console.warn("Failed to retrieve apps from server, fallback to local storage", e);
+      baseApps = this.getLocalApps();
     }
     
-    // Ensure all bundled baseline apps are available locally
-    const local = this.getLocalApps();
-    const localIds = new Set(local.map(a => a.id));
-    const merged = [...local];
+    // Ensure all bundled baseline apps are available
+    const baseIds = new Set(baseApps.map(a => a.id));
+    const merged = [...baseApps];
     for (const app of INITIAL_APPS) {
-      if (!localIds.has(app.id)) {
+      if (!baseIds.has(app.id)) {
         merged.push(app);
+        baseIds.add(app.id);
       }
     }
+
+    // Merge in any custom user apps that are saved locally but missing in server/base apps (due to server reset)
+    for (const app of customUserApps) {
+      if (!baseIds.has(app.id)) {
+        merged.unshift(app); // Put custom user uploaded apps at the beginning
+        baseIds.add(app.id);
+      }
+    }
+
     return merged;
   }
 
@@ -350,6 +381,10 @@ class DatabaseService {
     } catch (e) {
       console.warn("Failed to get app from server, fallback to local storage", e);
     }
+    const custom = this.getCustomUserApps();
+    const foundCustom = custom.find(a => a.id === id);
+    if (foundCustom) return foundCustom;
+
     const apps = this.getLocalApps();
     return apps.find(a => a.id === id) || INITIAL_APPS.find(a => a.id === id) || null;
   }
@@ -367,6 +402,13 @@ class DatabaseService {
       status: appData.status || 'published',
       rating: appData.rating || 4.5
     };
+
+    // Save in local custom user apps backup to guarantee browser-level persistence across server restarts
+    const customApps = this.getCustomUserApps();
+    if (!customApps.some(a => a.id === id)) {
+      customApps.unshift(newApp);
+      this.saveCustomUserApps(customApps);
+    }
 
     if (this.isFirebaseConnected() && this.firestore) {
       try {
@@ -406,6 +448,14 @@ class DatabaseService {
       updatedAt: new Date().toISOString()
     };
 
+    // Update in local custom user apps backup list
+    const customApps = this.getCustomUserApps();
+    const customIndex = customApps.findIndex(a => a.id === id);
+    if (customIndex !== -1) {
+      customApps[customIndex] = { ...customApps[customIndex], ...cleanUpdate };
+      this.saveCustomUserApps(customApps);
+    }
+
     if (this.isFirebaseConnected() && this.firestore) {
       try {
         const docRef = doc(this.firestore, 'apps', id);
@@ -439,6 +489,12 @@ class DatabaseService {
 
   public async deleteApp(id: string): Promise<void> {
     await this.ensureConfigLoaded();
+
+    // Delete from local custom user apps backup list
+    const customApps = this.getCustomUserApps();
+    const filteredCustom = customApps.filter(a => a.id !== id);
+    this.saveCustomUserApps(filteredCustom);
+
     if (this.isFirebaseConnected() && this.firestore) {
       try {
         await deleteDoc(doc(this.firestore, 'apps', id));

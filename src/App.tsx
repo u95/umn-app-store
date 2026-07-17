@@ -12,6 +12,7 @@ import HomeView from './views/HomeView';
 import DetailsView from './views/DetailsView';
 import LoginView from './views/LoginView';
 import AdminDashboardView from './views/AdminDashboardView';
+import LegalPagesView from './views/LegalPagesView';
 import AIChatBot from './components/AIChatBot';
 import InstallGuideModal from './components/InstallGuideModal';
 
@@ -318,7 +319,64 @@ export default function App() {
             />
           )
         )}
+
+        {['about', 'privacy', 'terms', 'disclaimer', 'dmca', 'contact'].includes(currentPage) && (
+          <LegalPagesView
+            page={currentPage}
+            onNavigate={handleNavigate}
+          />
+        )}
       </main>
+
+      {/* Modern responsive Google Play-themed Footer */}
+      <footer className="border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 mt-auto transition-colors duration-200">
+        <div className="max-w-7xl mx-auto px-4 py-8 sm:py-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            <div className="col-span-2 md:col-span-1 space-y-3">
+              <span className="font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400 text-lg">UMN App Store</span>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-normal max-w-xs">
+                A beautiful, high-performance secure Android APK distribution repository built for the UMN Ministry and college community.
+              </p>
+            </div>
+            
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-zinc-900 dark:text-white uppercase tracking-wider">Store pages</h4>
+              <ul className="space-y-2 text-xs text-zinc-500 dark:text-zinc-400">
+                <li><button onClick={() => handleNavigate('home')} className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer text-left">All Apps Catalog</button></li>
+                <li><button onClick={() => handleNavigate('login')} className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer text-left">Publisher Login</button></li>
+                <li><button onClick={() => handleNavigate('admin')} className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer text-left">Play Console</button></li>
+              </ul>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-zinc-900 dark:text-white uppercase tracking-wider">Legal & Compliance</h4>
+              <ul className="space-y-2 text-xs text-zinc-500 dark:text-zinc-400">
+                <li><button onClick={() => handleNavigate('privacy')} className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer text-left">Privacy Policy</button></li>
+                <li><button onClick={() => handleNavigate('terms')} className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer text-left">Terms & Conditions</button></li>
+                <li><button onClick={() => handleNavigate('disclaimer')} className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer text-left">Disclaimer Statement</button></li>
+                <li><button onClick={() => handleNavigate('dmca')} className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer text-left">DMCA & Copyright</button></li>
+              </ul>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-zinc-900 dark:text-white uppercase tracking-wider">Information</h4>
+              <ul className="space-y-2 text-xs text-zinc-500 dark:text-zinc-400">
+                <li><button onClick={() => handleNavigate('about')} className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer text-left">About Us</button></li>
+                <li><button onClick={() => handleNavigate('contact')} className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer text-left">Contact Us</button></li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="border-t border-zinc-100 dark:border-zinc-800/80 mt-8 pt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-[11px] text-zinc-400">
+            <span>© 2026 UMN Ministry & Tech Labs. All Rights Reserved.</span>
+            <div className="flex items-center gap-4">
+              <span>Google Play Inspired Design</span>
+              <span>•</span>
+              <span>PWA Ready Offline Cache</span>
+            </div>
+          </div>
+        </div>
+      </footer>
       
       {/* Floating Tamil AI Assistant Chatbot */}
       <AIChatBot />

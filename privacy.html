@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - Loading...</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #202124;
+        }
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #34A853;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 24px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .logo-text {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .sub-text {
+            color: #5f6368;
+            font-size: 14px;
+        }
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #1e1f20;
+                color: #e3e3e3;
+            }
+            .spinner {
+                border-color: #2d2e30;
+                border-top-color: #34A853;
+            }
+            .sub-text {
+                color: #9aa0a6;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="spinner"></div>
+    <div class="logo-text">UMN App Store</div>
+    <div class="sub-text">Loading Privacy Policy...</div>
+
+    <script>
+        window.location.replace('./index.html?page=privacy');
+    </script>
+</body>
+</html>

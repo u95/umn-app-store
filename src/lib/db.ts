@@ -247,6 +247,33 @@ class DatabaseService {
     }
   }
 
+  private getDeletedAppIds(): string[] {
+    try {
+      const data = safeStorage.getItem('UMN_DELETED_APP_IDS');
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  private saveDeletedAppId(id: string) {
+    try {
+      const ids = this.getDeletedAppIds();
+      if (!ids.includes(id)) {
+        ids.push(id);
+        safeStorage.setItem('UMN_DELETED_APP_IDS', JSON.stringify(ids));
+      }
+    } catch (e) {}
+  }
+
+  private removeDeletedAppId(id: string) {
+    try {
+      const ids = this.getDeletedAppIds();
+      const filtered = ids.filter(i => i !== id);
+      safeStorage.setItem('UMN_DELETED_APP_IDS', JSON.stringify(filtered));
+    } catch (e) {}
+  }
+
   // Helper utility to race an asynchronous promise against a timeout limit
   private async withTimeout<T>(promise: Promise<T>, ms = 3500): Promise<T> {
     let timeoutId: any;
@@ -263,6 +290,8 @@ class DatabaseService {
   // --- Unified App APIs ---
   public async getApps(): Promise<AppModel[]> {
     await this.ensureConfigLoaded();
+    const deletedIds = this.getDeletedAppIds();
+    
     if (this.isFirebaseConnected() && this.firestore) {
       try {
         const querySnapshot = await this.withTimeout(getDocs(collection(this.firestore, 'apps')));
@@ -278,41 +307,31 @@ class DatabaseService {
             await setDoc(doc(this.firestore, 'apps', app.id), app);
             list.push(app);
           }
-        } else {
-          // Dynamic self-healing: if any baseline apps from INITIAL_APPS are missing in Firestore, sync them!
-          const existingIds = new Set(list.map(a => a.id));
-          const missingApps = INITIAL_APPS.filter(app => !existingIds.has(app.id));
-          if (missingApps.length > 0) {
-            console.log(`Syncing ${missingApps.length} missing baseline apps to Firestore...`);
-            for (const app of missingApps) {
-              try {
-                await setDoc(doc(this.firestore, 'apps', app.id), app);
-                list.push(app);
-              } catch (err) {
-                console.error(`Failed to sync missing app ${app.id} to Firestore:`, err);
-              }
-            }
-          }
         }
-        return list;
+        
+        return list.filter(a => !deletedIds.includes(a.id));
       } catch (e) {
         console.error("Failed to fetch from Firestore, falling back to server database.", e);
-        return this.getServerOrLocalApps();
+        const serverApps = await this.getServerOrLocalApps();
+        return serverApps.filter(a => !deletedIds.includes(a.id));
       }
     } else {
-      return this.getServerOrLocalApps();
+      const serverApps = await this.getServerOrLocalApps();
+      return serverApps.filter(a => !deletedIds.includes(a.id));
     }
   }
 
   private async getServerOrLocalApps(): Promise<AppModel[]> {
     const customUserApps = this.getCustomUserApps();
     let baseApps: AppModel[] = [];
+    let isServerOk = false;
 
     try {
       const res = await fetch(getApiUrl("/api/apps"));
       if (res.ok) {
         baseApps = await res.json();
         this.saveLocalApps(baseApps);
+        isServerOk = true;
       } else {
         baseApps = this.getLocalApps();
       }
@@ -321,14 +340,18 @@ class DatabaseService {
       baseApps = this.getLocalApps();
     }
     
-    // Ensure all bundled baseline apps are available
     const baseIds = new Set(baseApps.map(a => a.id));
     const merged = [...baseApps];
-    for (const app of INITIAL_APPS) {
-      if (!baseIds.has(app.id)) {
-        merged.push(app);
-        baseIds.add(app.id);
+    
+    // Only merge baseline apps if the server request failed and local DB is fully empty
+    if (!isServerOk && baseApps.length === 0) {
+      for (const app of INITIAL_APPS) {
+        if (!baseIds.has(app.id)) {
+          merged.push(app);
+          baseIds.add(app.id);
+        }
       }
+      this.saveLocalApps(merged);
     }
 
     // Merge in any custom user apps that are saved locally but missing in server/base apps (due to server reset)
@@ -339,11 +362,15 @@ class DatabaseService {
       }
     }
 
-    return merged;
+    const deletedIds = this.getDeletedAppIds();
+    return merged.filter(a => !deletedIds.includes(a.id));
   }
 
   public async getAppById(id: string): Promise<AppModel | null> {
     await this.ensureConfigLoaded();
+    const deletedIds = this.getDeletedAppIds();
+    if (deletedIds.includes(id)) return null;
+
     if (this.isFirebaseConnected() && this.firestore) {
       try {
         const docRef = doc(this.firestore, 'apps', id);
@@ -351,7 +378,7 @@ class DatabaseService {
         if (docSnap.exists()) {
           return { id: docSnap.id, ...docSnap.data() } as AppModel;
         }
-        // If it exists in INITIAL_APPS but not Firestore, auto-sync it to Firestore!
+        // If it exists in INITIAL_APPS but not Firestore and is NOT deleted, auto-sync it to Firestore!
         const baselineApp = INITIAL_APPS.find(a => a.id === id);
         if (baselineApp) {
           console.log(`Auto-syncing single missing app ${id} to Firestore...`);
@@ -393,6 +420,9 @@ class DatabaseService {
     await this.ensureConfigLoaded();
     const id = appData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `app-${Date.now()}`;
     
+    // Remove from deleted list if republished
+    this.removeDeletedAppId(id);
+
     const newApp: AppModel = {
       ...appData,
       id,
@@ -414,8 +444,9 @@ class DatabaseService {
       try {
         await setDoc(doc(this.firestore, 'apps', id), newApp);
         return id;
-      } catch (e) {
-        console.error("Firestore addApp failed, writing to server", e);
+      } catch (e: any) {
+        console.error("Firestore addApp failed, throwing to UI", e);
+        throw new Error(`Firebase Error: ${e.message || "Missing or insufficient permissions for Firestore."}`);
       }
     }
 
@@ -443,6 +474,8 @@ class DatabaseService {
 
   public async updateApp(id: string, updatedData: Partial<AppModel>): Promise<void> {
     await this.ensureConfigLoaded();
+    this.removeDeletedAppId(id);
+
     const cleanUpdate = {
       ...updatedData,
       updatedAt: new Date().toISOString()
@@ -461,8 +494,9 @@ class DatabaseService {
         const docRef = doc(this.firestore, 'apps', id);
         await updateDoc(docRef, cleanUpdate);
         return;
-      } catch (e) {
-        console.error("Firestore updateApp failed, updating on server", e);
+      } catch (e: any) {
+        console.error("Firestore updateApp failed, throwing to UI", e);
+        throw new Error(`Firebase Error: ${e.message || "Missing or insufficient permissions for Firestore."}`);
       }
     }
 
@@ -489,6 +523,9 @@ class DatabaseService {
 
   public async deleteApp(id: string): Promise<void> {
     await this.ensureConfigLoaded();
+    
+    // Save to deleted list so it doesn't get merged or resurrected from fallbacks
+    this.saveDeletedAppId(id);
 
     // Delete from local custom user apps backup list
     const customApps = this.getCustomUserApps();
@@ -499,8 +536,9 @@ class DatabaseService {
       try {
         await deleteDoc(doc(this.firestore, 'apps', id));
         return;
-      } catch (e) {
-        console.error("Firestore deleteApp failed, deleting on server", e);
+      } catch (e: any) {
+        console.error("Firestore deleteApp failed, throwing to UI", e);
+        throw new Error(`Firebase Error: ${e.message || "Missing or insufficient permissions for Firestore."}`);
       }
     }
 

@@ -25,6 +25,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// Prevent caching for all API endpoints to ensure real-time UI synchronization
+app.use("/api", (req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  next();
+});
+
 // Initialize Gemini API Client safely (Lazy / conditional on start to prevent crash if not set)
 let aiClient: GoogleGenAI | null = null;
 const getAiClient = (): GoogleGenAI => {

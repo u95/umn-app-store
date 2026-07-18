@@ -45,11 +45,15 @@ try {
 
 // Dynamically resolve full API URL for compiled standalone Android APKs and nested frames
 export const getApiUrl = (path: string): string => {
+  // Add unique timestamp query parameter to defeat browser caching of API requests
+  const buster = `t=${Date.now()}`;
+  const pathWithBuster = path.includes('?') ? `${path}&${buster}` : `${path}?${buster}`;
+
   // Try retrieving a manually set host overriding standard defaults first
   try {
     const savedHost = safeStorage.getItem('UMN_API_HOST');
     if (savedHost) {
-      return `${savedHost}${path}`;
+      return `${savedHost}${pathWithBuster}`;
     }
   } catch (e) {}
 
@@ -60,16 +64,16 @@ export const getApiUrl = (path: string): string => {
 
   // If hosted on GitHub Pages or custom standalone external client, route directly to Cloud Run
   if (hostname.endsWith('github.io')) {
-    return `${defaultDeployedUrl}${path}`;
+    return `${defaultDeployedUrl}${pathWithBuster}`;
   }
 
   // If running in a web browser context (with standard http/https), use standard relative paths
   // to ensure local dev server and sandbox previews work seamlessly on their respective hosts.
   if (protocol === 'http:' || protocol === 'https:') {
-    return path;
+    return pathWithBuster;
   }
 
-  return `${defaultDeployedUrl}${path}`;
+  return `${defaultDeployedUrl}${pathWithBuster}`;
 };
 
 class DatabaseService {
@@ -457,10 +461,19 @@ class DatabaseService {
       this.saveCustomUserApps(customApps);
     }
 
+    // Always update local cache immediately to prevent stale states and race conditions
+    const apps = this.getLocalApps();
+    const finalId = apps.some(a => a.id === id) ? `${id}-${Date.now()}` : id;
+    newApp.id = finalId;
+    if (!apps.some(a => a.id === finalId)) {
+      apps.unshift(newApp);
+      this.saveLocalApps(apps);
+    }
+
     if (this.isFirebaseConnected() && this.firestore) {
       try {
-        await setDoc(doc(this.firestore, 'apps', id), newApp);
-        return id;
+        await setDoc(doc(this.firestore, 'apps', finalId), newApp);
+        return finalId;
       } catch (e: any) {
         console.error("Firestore addApp failed, throwing to UI", e);
         throw new Error(`Firebase Error: ${e.message || "Missing or insufficient permissions for Firestore."}`);
@@ -478,14 +491,9 @@ class DatabaseService {
         return savedApp.id;
       }
     } catch (e) {
-      console.warn("Failed to save app to server, saving locally", e);
+      console.warn("Failed to save app to server", e);
     }
 
-    const apps = this.getLocalApps();
-    const finalId = apps.some(a => a.id === id) ? `${id}-${Date.now()}` : id;
-    newApp.id = finalId;
-    apps.unshift(newApp);
-    this.saveLocalApps(apps);
     return finalId;
   }
 

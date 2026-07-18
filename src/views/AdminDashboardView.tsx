@@ -78,12 +78,50 @@ export default function AdminDashboardView({
   const [appStatus, setAppStatus] = useState<'published' | 'draft' | 'suspended'>('published');
   const [isFeatured, setIsFeatured] = useState(false);
 
+  // Custom Alert / Confirm Modal states
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    isConfirm: boolean;
+    onConfirm?: () => void | Promise<void>;
+    confirmText?: string;
+    cancelText?: string;
+  } | null>(null);
+
+  const showCustomAlert = (title: string, message: string) => {
+    setModalConfig({
+      isOpen: true,
+      title,
+      message,
+      isConfirm: false,
+    });
+  };
+
+  const showCustomConfirm = (
+    title: string,
+    message: string,
+    onConfirm: () => void | Promise<void>,
+    confirmText = "Yes",
+    cancelText = "Cancel"
+  ) => {
+    setModalConfig({
+      isOpen: true,
+      title,
+      message,
+      isConfirm: true,
+      onConfirm,
+      confirmText,
+      cancelText,
+    });
+  };
+
   // AI description generator states and handler
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
 
   const handleAiGenerateDescription = async () => {
     if (!appName.trim()) {
-      alert("தயவுசெய்து முதலில் செயலியின் பெயரை (App Name) உள்ளிடவும்.");
+      showCustomAlert("பெயர் தேவை (Name Required)", "தயவுசெய்து முதலில் செயலியின் பெயரை (App Name) உள்ளிடவும்.");
       return;
     }
     setIsGeneratingDescription(true);
@@ -101,7 +139,7 @@ export default function AdminDashboardView({
       const data = await res.json();
       setAppDescription(data.description);
     } catch (e) {
-      alert("AI விளக்கம் உருவாக்க முடியவில்லை. உங்கள் .env கோப்பில் GEMINI_API_KEY உள்ளதா என சரிபார்க்கவும்.");
+      showCustomAlert("AI பிழை (AI Error)", "AI விளக்கம் உருவாக்க முடியவில்லை. உங்கள் .env கோப்பில் GEMINI_API_KEY உள்ளதா என சரிபார்க்கவும்.");
     } finally {
       setIsGeneratingDescription(false);
     }
@@ -257,14 +295,20 @@ export default function AdminDashboardView({
   };
 
   // Delete Action Trigger
-  const handleDeleteTrigger = async (id: string, name: string) => {
-    if (window.confirm(`Are you absolutely sure you want to permanently delete the "${name}" application? This cannot be undone.`)) {
-      try {
-        await onDeleteApp(id);
-      } catch (err: any) {
-        alert("Failed to delete application from database: " + err.message);
-      }
-    }
+  const handleDeleteTrigger = (id: string, name: string) => {
+    showCustomConfirm(
+      "செயலியை நீக்கு (Delete Application)",
+      `நீங்கள் "${name}" செயலியை நிரந்தரமாக நீக்க விரும்புகிறீர்களா? இந்த நடவடிக்கையை மாற்ற முடியாது (Are you absolutely sure you want to permanently delete the "${name}" application? This cannot be undone).`,
+      async () => {
+        try {
+          await onDeleteApp(id);
+        } catch (err: any) {
+          showCustomAlert("நீக்குவதில் பிழை (Deletion Error)", "Failed to delete application from database: " + err.message);
+        }
+      },
+      "ஆமாம், நீக்கு (Yes, Delete)",
+      "வேண்டாம் (Cancel)"
+    );
   };
 
   return (
@@ -780,28 +824,37 @@ export default function AdminDashboardView({
                             try {
                               const parsed = JSON.parse(event.target?.result as string);
                               if (!Array.isArray(parsed)) {
-                                alert("Invalid format! Must be a JSON array of applications.");
+                                showCustomAlert("பிழையான வடிவம் (Invalid Format)", "Invalid format! Must be a JSON array of applications.");
                                 return;
                               }
 
-                              if (window.confirm(`Are you sure you want to import ${parsed.length} apps? This will add them to your database.`)) {
-                                setIsSavingSettings(true);
-                                let successCount = 0;
-                                for (const app of parsed) {
-                                  try {
-                                    // Strip id to allow auto-generation/safety or keep existing
-                                    const { id, ...appData } = app;
-                                    await onAddApp(appData);
-                                    successCount++;
-                                  } catch (err) {
-                                    console.error("Failed to import individual app:", app.name, err);
+                              showCustomConfirm(
+                                "தரவு இறக்குமதி (Import Database)",
+                                `நீங்கள் ${parsed.length} செயலிகளை இறக்குமதி செய்ய விரும்புகிறீர்களா? இது உங்கள் தரவுத்தளத்தில் சேர்க்கப்படும் (Are you sure you want to import ${parsed.length} apps? This will add them to your database).`,
+                                async () => {
+                                  setIsSavingSettings(true);
+                                  let successCount = 0;
+                                  for (const app of parsed) {
+                                    try {
+                                      // Strip id to allow auto-generation/safety or keep existing
+                                      const { id, ...appData } = app;
+                                      await onAddApp(appData);
+                                      successCount++;
+                                    } catch (err) {
+                                      console.error("Failed to import individual app:", app.name, err);
+                                    }
                                   }
+                                  showCustomAlert(
+                                    "இறக்குமதி முடிந்தது (Import Complete)",
+                                    `வெற்றிகரமாக ${successCount}/${parsed.length} செயலிகள் சேர்க்கப்பட்டன. பக்கம் புதுப்பிக்கப்படுகிறது...`
+                                  );
+                                  setTimeout(() => {
+                                    window.location.reload();
+                                  }, 1500);
                                 }
-                                alert(`Import complete! Successfully added ${successCount} out of ${parsed.length} apps.`);
-                                window.location.reload();
-                              }
+                              );
                             } catch (err: any) {
-                              alert("Failed to parse JSON file: " + err.message);
+                              showCustomAlert("பிழை (Error)", "Failed to parse JSON file: " + err.message);
                             } finally {
                               setIsSavingSettings(false);
                             }
@@ -901,16 +954,22 @@ export default function AdminDashboardView({
                 <div className="pt-3 flex gap-2 justify-end">
                   {dbService.isFirebaseConnected() && (
                     <button
-                      onClick={async () => {
-                        if (window.confirm("Disconnect from Firebase and restore local sandbox mode? Your browser local storage will be used as fallback.")) {
-                          setIsSavingSettings(true);
-                          try {
-                            await dbService.saveFirebaseConfig(null);
-                          } catch (e: any) {
-                            setSettingsError(e.message);
-                            setIsSavingSettings(false);
-                          }
-                        }
+                      onClick={() => {
+                        showCustomConfirm(
+                          "பயர்பேஸ் துண்டிப்பு (Disconnect Firebase)",
+                          "பயர்பேஸ் இணைப்பைத் துண்டித்து உள்ளூர் சாண்ட்பாக்ஸ் பயன்முறையை மீட்டெடுக்கவா? உங்கள் உலாவி உள்ளூர் சேமிப்பு தற்காலிகமாகப் பயன்படுத்தப்படும் (Disconnect from Firebase and restore local sandbox mode? Your browser local storage will be used as fallback).",
+                          async () => {
+                            setIsSavingSettings(true);
+                            try {
+                              await dbService.saveFirebaseConfig(null);
+                            } catch (e: any) {
+                              setSettingsError(e.message);
+                              setIsSavingSettings(false);
+                            }
+                          },
+                          "துண்டி (Disconnect)",
+                          "ரத்துசெய் (Cancel)"
+                        );
                       }}
                       className="h-10 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:text-red-500 text-zinc-500 text-xs font-bold cursor-pointer transition-colors"
                     >
@@ -1238,6 +1297,57 @@ export default function AdminDashboardView({
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Custom Alert/Confirm Dialog Modal */}
+      {modalConfig && modalConfig.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" id="custom-alert-confirm-backdrop">
+          <div className="w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-3xl p-6 shadow-2xl space-y-6 animate-scale-up">
+            <div className="space-y-2">
+              <h3 className="text-base font-black text-zinc-900 dark:text-white leading-tight">
+                {modalConfig.title}
+              </h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed whitespace-pre-line">
+                {modalConfig.message}
+              </p>
+            </div>
+            
+            <div className="flex gap-3 justify-end pt-2">
+              {modalConfig.isConfirm ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setModalConfig(null)}
+                    className="h-10 px-4.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-950 text-zinc-650 dark:text-zinc-300 text-xs font-bold cursor-pointer transition-colors"
+                  >
+                    {modalConfig.cancelText || "Cancel"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const confirmCb = modalConfig.onConfirm;
+                      setModalConfig(null);
+                      if (confirmCb) {
+                        await confirmCb();
+                      }
+                    }}
+                    className="h-10 px-5 rounded-xl bg-green-500 hover:bg-green-600 text-zinc-950 text-xs font-bold cursor-pointer transition-all active:scale-95"
+                  >
+                    {modalConfig.confirmText || "Confirm"}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setModalConfig(null)}
+                  className="h-10 px-6 rounded-xl bg-green-500 hover:bg-green-600 text-zinc-950 text-xs font-bold cursor-pointer transition-all active:scale-95"
+                >
+                  சரி (OK)
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

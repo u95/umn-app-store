@@ -300,12 +300,29 @@ class DatabaseService {
           list.push({ id: docSnap.id, ...docSnap.data() } as AppModel);
         });
         
-        // If Firestore is empty, seed it with initial apps for convenience
-        if (list.length === 0) {
-          console.log("Firestore 'apps' collection is empty. Seeding initial apps...");
+        // If Firestore is empty, check if we have seeded before using a metadata document
+        const metaRef = doc(this.firestore, 'metadata', 'init');
+        let metaSnap;
+        try {
+          metaSnap = await getDoc(metaRef);
+        } catch (err) {
+          console.warn("Could not fetch metadata init document:", err);
+        }
+
+        if (list.length === 0 && (!metaSnap || !metaSnap.exists())) {
+          console.log("Firestore 'apps' collection is empty and never seeded. Seeding initial apps...");
           for (const app of INITIAL_APPS) {
-            await setDoc(doc(this.firestore, 'apps', app.id), app);
-            list.push(app);
+            try {
+              await setDoc(doc(this.firestore, 'apps', app.id), app);
+              list.push(app);
+            } catch (err) {
+              console.error("Failed to seed app " + app.id, err);
+            }
+          }
+          try {
+            await setDoc(metaRef, { seeded: true, timestamp: new Date().toISOString() });
+          } catch (err) {
+            console.error("Failed to set seed metadata document:", err);
           }
         }
         
@@ -481,12 +498,20 @@ class DatabaseService {
       updatedAt: new Date().toISOString()
     };
 
-    // Update in local custom user apps backup list
+    // 1. Update in local custom user apps backup list
     const customApps = this.getCustomUserApps();
     const customIndex = customApps.findIndex(a => a.id === id);
     if (customIndex !== -1) {
       customApps[customIndex] = { ...customApps[customIndex], ...cleanUpdate };
       this.saveCustomUserApps(customApps);
+    }
+
+    // 2. Update in local apps cache immediately
+    const apps = this.getLocalApps();
+    const index = apps.findIndex(a => a.id === id);
+    if (index !== -1) {
+      apps[index] = { ...apps[index], ...cleanUpdate };
+      this.saveLocalApps(apps);
     }
 
     if (this.isFirebaseConnected() && this.firestore) {
@@ -510,14 +535,7 @@ class DatabaseService {
         return;
       }
     } catch (e) {
-      console.warn("Failed to update app on server, updating locally", e);
-    }
-
-    const apps = this.getLocalApps();
-    const index = apps.findIndex(a => a.id === id);
-    if (index !== -1) {
-      apps[index] = { ...apps[index], ...cleanUpdate };
-      this.saveLocalApps(apps);
+      console.warn("Failed to update app on server", e);
     }
   }
 
@@ -531,6 +549,11 @@ class DatabaseService {
     const customApps = this.getCustomUserApps();
     const filteredCustom = customApps.filter(a => a.id !== id);
     this.saveCustomUserApps(filteredCustom);
+
+    // Always update local cache immediately to prevent stale states
+    let localApps = this.getLocalApps();
+    localApps = localApps.filter(a => a.id !== id);
+    this.saveLocalApps(localApps);
 
     if (this.isFirebaseConnected() && this.firestore) {
       try {
@@ -550,12 +573,8 @@ class DatabaseService {
         return;
       }
     } catch (e) {
-      console.warn("Failed to delete app from server, deleting locally", e);
+      console.warn("Failed to delete app from server", e);
     }
-
-    let apps = this.getLocalApps();
-    apps = apps.filter(a => a.id !== id);
-    this.saveLocalApps(apps);
   }
 
   public async incrementDownloads(id: string): Promise<void> {

@@ -118,10 +118,10 @@ export default function App() {
     setIsLoading(true);
     try {
       const activeApps = await dbService.getApps();
-      if (activeApps && activeApps.length > 0) {
+      if (activeApps) {
         setApps(activeApps);
       } else {
-        console.warn("Retrieved empty apps list, falling back to static INITIAL_APPS catalog.");
+        console.warn("Retrieved null/undefined apps list, falling back to static INITIAL_APPS catalog.");
         setApps(INITIAL_APPS);
       }
     } catch (e) {

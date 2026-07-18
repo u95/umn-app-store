@@ -1,12 +1,22 @@
 const CACHE_NAME = 'umn-play-store-v12';
 
-const PRECACHE_ASSETS = [
+const isPreview = 
+  self.location.hostname.includes('ais-dev') || 
+  self.location.hostname.includes('ais-pre') || 
+  self.location.hostname.includes('localhost') || 
+  self.location.hostname.includes('127.0.0.1');
+
+const PRECACHE_ASSETS = isPreview ? [] : [
   './',
   './index.html',
   './manifest.json'
 ];
 
 self.addEventListener('install', (e) => {
+  if (isPreview) {
+    self.skipWaiting();
+    return;
+  }
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(PRECACHE_ASSETS).catch((err) => {
@@ -22,7 +32,7 @@ self.addEventListener('activate', (e) => {
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
-          if (key !== CACHE_NAME) {
+          if (isPreview || key !== CACHE_NAME) {
             return caches.delete(key);
           }
         })
@@ -33,6 +43,8 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+  if (isPreview) return;
+
   if (e.request.method !== 'GET') return;
 
   const url = new URL(e.request.url);

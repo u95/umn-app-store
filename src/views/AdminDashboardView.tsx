@@ -1009,6 +1009,58 @@ export default function AdminDashboardView({
               </div>
             </div>
 
+            {/* Section C: Master Factory Reset */}
+            <div className="bg-red-50/50 dark:bg-red-950/10 border border-red-150 dark:border-red-900/30 rounded-2xl p-5 sm:p-6 space-y-4">
+              <div className="border-b border-red-100 dark:border-red-900/20 pb-2 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500 animate-pulse" />
+                <div>
+                  <h3 className="text-sm font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">
+                    முழுமையான தொழிற்சாலை மீட்டமைப்பு (Factory Master Reset)
+                  </h3>
+                  <p className="text-[11px] text-red-600/75 dark:text-red-400/60 leading-normal mt-0.5">
+                    இது அனைத்து தரவுகளையும் அசல் நிலைக்குத் திருப்பும். நீங்கள் சேர்த்த மற்றும் மாற்றியமைத்த அனைத்து தரவுகளும் நீக்கப்பட்டு, உலாவி தற்காலிக சேமிப்பு (Cache) முழுமையாக அழிக்கப்படும்.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="text-[11px] text-zinc-500 dark:text-zinc-400 max-w-2xl leading-relaxed">
+                  <strong>முக்கிய எச்சரிக்கை (Warning):</strong> இந்த செயலை ரத்து செய்ய முடியாது. அனைத்து தற்காலிக சேமிப்புகளும், பதிவேற்றிய APK கோப்புகளின் தரவுகளும் அழிக்கப்பட்டு பக்கம் முதலிலிருந்து (from the beginning) புத்தம் புதியதாக தொடங்கப்படும்.
+                </div>
+                <button
+                  onClick={() => {
+                    showCustomConfirm(
+                      "ஆப் ஸ்டோரை மீட்டமைக்கலாமா? (Reset Play Store?)",
+                      "நிச்சயமாக ஆப் ஸ்டோரை மீட்டமைக்க வேண்டுமா? நீங்கள் உருவாக்கிய அனைத்து தனிப்பயன் மாற்றங்களும் அழிக்கப்பட்டு, அசல் அமைப்புகளுடன் உலாவி தற்காலிக சேமிப்புகளும் முழுமையாக அழிக்கப்படும் (Are you sure you want to completely factory reset? This will wipe all local descriptions, APK databases, and browser Service Workers back to fresh defaults).",
+                      async () => {
+                        setIsSavingSettings(true);
+                        try {
+                          await dbService.resetDatabase();
+                          showCustomAlert(
+                            "மீட்டமைக்கப்பட்டது (Reset Successful)",
+                            "ஆப் ஸ்டோர் வெற்றிகரமாக மீட்டமைக்கப்பட்டது! புதிய மாற்றங்களை உடனடியாகப் பெற உலாவி முழுமையாக புதுப்பிக்கப்படுகிறது (Play store reset successfully! The app is reloading automatically from the beginning)."
+                          );
+                          setTimeout(() => {
+                            window.location.reload();
+                          }, 2000);
+                        } catch (err: any) {
+                          showCustomAlert("பிழை (Reset Failed)", "மீட்டமைப்பில் பிழை ஏற்பட்டது: " + err.message);
+                          setIsSavingSettings(false);
+                        }
+                      },
+                      "மீட்டமை (Reset Now)",
+                      "ரத்துசெய் (Cancel)"
+                    );
+                  }}
+                  disabled={isSavingSettings}
+                  className="h-11 px-5 rounded-xl bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all shrink-0 hover:shadow-lg disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isSavingSettings ? 'animate-spin' : ''}`} />
+                  <span>முதலிருந்து மீட்டமை (Factory Reset Now)</span>
+                </button>
+              </div>
+            </div>
+
           </div>
 
         </div>

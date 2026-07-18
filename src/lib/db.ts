@@ -742,6 +742,75 @@ class DatabaseService {
     };
   }
 
+  public async resetDatabase(): Promise<boolean> {
+    await this.ensureConfigLoaded();
+    
+    // 1. Wipe all local storage caches
+    try {
+      safeStorage.removeItem(LOCAL_DB_KEY);
+      safeStorage.removeItem('UMN_CUSTOM_USER_APPS');
+      safeStorage.removeItem('UMN_DELETED_APP_IDS');
+      safeStorage.removeItem('UMN_APP_STORE_THEME');
+      console.log("Cleared local storage keys.");
+    } catch (e) {
+      console.error("Failed to clear local storage", e);
+    }
+
+    // 2. Clear all browser service worker caches and registrations
+    if ('serviceWorker' in navigator) {
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const registration of registrations) {
+          await registration.unregister();
+          console.log('Unregistered active service worker during reset:', registration.scope);
+        }
+      } catch (e) {
+        console.warn('Failed to unregister service worker:', e);
+      }
+    }
+    if ('caches' in window) {
+      try {
+        const names = await caches.keys();
+        for (const name of names) {
+          await caches.delete(name);
+          console.log('Deleted cache during reset:', name);
+        }
+      } catch (e) {
+        console.warn('Failed to clear caches:', e);
+      }
+    }
+
+    // 3. Clear Firestore collection if connected
+    if (this.isFirebaseConnected() && this.firestore) {
+      try {
+        const metaRef = doc(this.firestore, 'metadata', 'init');
+        await deleteDoc(metaRef).catch(() => {});
+        
+        for (const app of INITIAL_APPS) {
+          await setDoc(doc(this.firestore, 'apps', app.id), app);
+        }
+        console.log("Firestore reset complete.");
+      } catch (e) {
+        console.error("Firestore reset failed:", e);
+      }
+    }
+
+    // 4. Request server reset
+    try {
+      const res = await fetch(getApiUrl("/api/apps/reset"), {
+        method: "POST"
+      });
+      if (res.ok) {
+        console.log("Server database reset complete.");
+        return true;
+      }
+    } catch (e) {
+      console.warn("Server reset request failed", e);
+    }
+
+    return true;
+  }
+
   private notifyAuthListeners(user: { uid: string; email: string } | null) {
     this.authListeners.forEach(cb => cb(user));
   }

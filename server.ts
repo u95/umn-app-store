@@ -361,6 +361,16 @@ app.post("/api/apps/:id/download", (req, res) => {
   }
 });
 
+// 7. Reset DB to baseline defaults
+app.post("/api/apps/reset", (req, res) => {
+  try {
+    saveAppsToDb(INITIAL_APPS as AppModel[]);
+    res.json({ success: true, message: "Database reset to baseline defaults successfully" });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || "Failed to reset database" });
+  }
+});
+
 // Vite middleware for development or Static Assets for production and server listener
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {

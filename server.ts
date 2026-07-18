@@ -263,12 +263,12 @@ app.post("/api/apps", (req, res) => {
       return res.status(400).json({ error: "Name, developer, and category are required." });
     }
     
-    const id = appData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `app-${Date.now()}`;
+    const id = appData.id || appData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `app-${Date.now()}`;
     const apps = getAppsFromDb();
     
     // Ensure unique ID
     let finalId = id;
-    if (apps.some(a => a.id === id)) {
+    if (!appData.id && apps.some(a => a.id === id)) {
       finalId = `${id}-${Date.now()}`;
     }
     
@@ -276,8 +276,8 @@ app.post("/api/apps", (req, res) => {
       ...appData,
       id: finalId,
       downloads: appData.downloads || 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: appData.createdAt || new Date().toISOString(),
+      updatedAt: appData.updatedAt || new Date().toISOString(),
       status: appData.status || 'published',
       rating: appData.rating || 4.5
     };

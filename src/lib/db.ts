@@ -423,7 +423,7 @@ class DatabaseService {
       const res = await fetch(getApiUrl("/api/apps"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(appData)
+        body: JSON.stringify(newApp)
       });
       if (res.ok) {
         const savedApp = await res.json();

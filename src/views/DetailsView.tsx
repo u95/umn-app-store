@@ -42,7 +42,8 @@ export default function DetailsView({
   const [showInstallHelp, setShowInstallHelp] = useState(false);
 
   // Review submission state
-  const [customReviews, setCustomReviews] = useState<ReviewModel[]>([]);
+  const [reviews, setReviews] = useState<ReviewModel[]>([]);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [reviewName, setReviewName] = useState('');
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
@@ -93,24 +94,21 @@ export default function DetailsView({
     }
   }, [appId, apps]);
 
-  // Gather reviews dynamically
-  const reviews: ReviewModel[] = useMemo(() => {
-    if (!app) return [];
-    const baselineReviews = MOCK_REVIEWS[app.id] || [
-      {
-        id: "r-def-1",
-        userName: language === 'ta' ? "சபை உறுப்பினர்" : "Community Reviewer",
-        rating: 5,
-        comment: language === 'ta' 
-          ? "மிகவும் அருமையான பயனுள்ள செயலி! ஆண்ட்ராய்டு மொபைலில் எளிமையாகவும் வேகமாகவும் வேலை செய்கிறது."
-          : "Excellent utility application, super fast, and easy to run on my Android device. 5 stars!",
-        date: "2026-07-01"
-      }
-    ];
-    // Filter custom reviews written by current user for this specific app
-    const userReviews = customReviews.filter(r => r.id.startsWith(`custom-${app.id}-`));
-    return [...userReviews, ...baselineReviews];
-  }, [app, customReviews, language]);
+  // Load reviews dynamically from database service
+  useEffect(() => {
+    if (!app) return;
+    setIsLoadingReviews(true);
+    dbService.getReviews(app.id)
+      .then((data) => {
+        setReviews(data);
+      })
+      .catch((err) => {
+        console.error("Failed to load reviews:", err);
+      })
+      .finally(() => {
+        setIsLoadingReviews(false);
+      });
+  }, [app]);
 
   // Compute average rating and count
   const stats = useMemo(() => {
@@ -206,27 +204,40 @@ export default function DetailsView({
   };
 
   // Review submission
-  const handleAddReview = (e: React.FormEvent) => {
+  const handleAddReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reviewName.trim() || !reviewComment.trim()) return;
+    if (!reviewName.trim() || !reviewComment.trim() || !app) return;
 
-    const newRev: ReviewModel = {
-      id: `custom-${app.id}-${Date.now()}`,
-      userName: reviewName.trim(),
-      rating: reviewRating,
-      comment: reviewComment.trim(),
-      date: new Date().toISOString().split('T')[0]
-    };
+    try {
+      const newRev = await dbService.addReview(app.id, {
+        userName: reviewName.trim(),
+        rating: reviewRating,
+        comment: reviewComment.trim(),
+        date: new Date().toISOString().split('T')[0]
+      });
 
-    setCustomReviews(prev => [newRev, ...prev]);
-    setReviewSuccess(true);
-    setReviewComment('');
-    setReviewName('');
-    
-    // Clear success banner after 5 seconds
-    setTimeout(() => {
-      setReviewSuccess(false);
-    }, 5000);
+      setReviews(prev => [newRev, ...prev]);
+      setReviewSuccess(true);
+      setReviewComment('');
+      setReviewName('');
+      setReviewRating(5);
+      
+      // If parent has exposed app loading, refresh the global catalog stats
+      if (typeof window !== "undefined" && (window as any).loadApps) {
+        try {
+          (window as any).loadApps();
+        } catch (err) {
+          console.warn("Could not reload parent apps listing:", err);
+        }
+      }
+
+      // Clear success banner after 5 seconds
+      setTimeout(() => {
+        setReviewSuccess(false);
+      }, 5000);
+    } catch (err) {
+      console.error("Failed to submit review via database service:", err);
+    }
   };
 
   return (

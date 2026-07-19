@@ -4,8 +4,8 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import fs from "fs";
-import { INITIAL_APPS } from "./src/data/initialApps";
-import { AppModel } from "./src/types";
+import { INITIAL_APPS, MOCK_REVIEWS } from "./src/data/initialApps";
+import { AppModel, ReviewModel } from "./src/types";
 
 dotenv.config();
 
@@ -169,6 +169,36 @@ Make it sound professional, modern, and in line with high-quality Play Store edi
 // --- Server-Side Persistent JSON Database for UMN Play Store ---
 const DB_FILE_PATH = path.join(process.cwd(), "apps_db.json");
 const CONFIG_FILE_PATH = path.join(process.cwd(), "firebase_config.json");
+const REVIEWS_FILE_PATH = path.join(process.cwd(), "reviews_db.json");
+
+// Helper to get all reviews
+function getReviewsFromDb(): Record<string, ReviewModel[]> {
+  try {
+    if (fs.existsSync(REVIEWS_FILE_PATH)) {
+      const data = fs.readFileSync(REVIEWS_FILE_PATH, "utf-8");
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error("Error reading reviews DB file, using fallback:", error);
+  }
+  
+  // Seed file if it doesn't exist
+  try {
+    fs.writeFileSync(REVIEWS_FILE_PATH, JSON.stringify(MOCK_REVIEWS, null, 2), "utf-8");
+  } catch (e) {
+    console.error("Failed to seed reviews DB file:", e);
+  }
+  return MOCK_REVIEWS;
+}
+
+// Helper to save all reviews
+function saveReviewsToDb(reviews: Record<string, ReviewModel[]>) {
+  try {
+    fs.writeFileSync(REVIEWS_FILE_PATH, JSON.stringify(reviews, null, 2), "utf-8");
+  } catch (error) {
+    console.error("Error writing reviews DB file:", error);
+  }
+}
 
 // Get Firebase configuration dynamically
 app.get("/api/config/firebase", (req, res) => {
@@ -368,6 +398,64 @@ app.post("/api/apps/reset", (req, res) => {
     res.json({ success: true, message: "Database reset to baseline defaults successfully" });
   } catch (e: any) {
     res.status(500).json({ error: e.message || "Failed to reset database" });
+  }
+});
+
+// 8. Get reviews for an app
+app.get("/api/apps/:id/reviews", (req, res) => {
+  try {
+    const { id } = req.params;
+    const allReviews = getReviewsFromDb();
+    const appReviews = allReviews[id] || [];
+    res.json(appReviews);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || "Failed to load reviews" });
+  }
+});
+
+// 9. Post a review for an app
+app.post("/api/apps/:id/reviews", (req, res) => {
+  try {
+    const { id } = req.params;
+    const reviewData = req.body;
+    
+    if (!reviewData.userName || !reviewData.comment || !reviewData.rating) {
+      return res.status(400).json({ error: "UserName, comment, and rating are required." });
+    }
+    
+    const allReviews = getReviewsFromDb();
+    if (!allReviews[id]) {
+      allReviews[id] = [];
+    }
+    
+    const newReview: ReviewModel = {
+      id: reviewData.id || `r-${id}-${Date.now()}`,
+      userName: reviewData.userName,
+      rating: Number(reviewData.rating) || 5,
+      comment: reviewData.comment,
+      date: reviewData.date || new Date().toISOString().split('T')[0]
+    };
+    
+    allReviews[id].unshift(newReview);
+    saveReviewsToDb(allReviews);
+    
+    // Auto-recalculate average rating and review count of the app
+    const apps = getAppsFromDb();
+    const appIndex = apps.findIndex(a => a.id === id);
+    if (appIndex !== -1) {
+      const appReviews = allReviews[id];
+      const totalReviews = appReviews.length;
+      const totalRating = appReviews.reduce((sum, r) => sum + r.rating, 0);
+      
+      apps[appIndex].reviewsCount = totalReviews;
+      apps[appIndex].rating = parseFloat((totalRating / totalReviews).toFixed(1));
+      apps[appIndex].updatedAt = new Date().toISOString();
+      saveAppsToDb(apps);
+    }
+    
+    res.status(201).json(newReview);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || "Failed to save review" });
   }
 });
 

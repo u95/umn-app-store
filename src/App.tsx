@@ -157,12 +157,22 @@ export default function App() {
   useEffect(() => {
     loadApps();
     
+    // Bind reload trigger to window so child views can refresh the catalog
+    if (typeof window !== "undefined") {
+      (window as any).loadApps = loadApps;
+    }
+    
     // Subscribe to admin sessions
     const unsubscribe = dbService.subscribeToAuth((user) => {
       setCurrentUser(user);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      if (typeof window !== "undefined") {
+        delete (window as any).loadApps;
+      }
+    };
   }, []);
 
   // 3. Dual Route syncing (Parses browser URLs and state to support deep linking)

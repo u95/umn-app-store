@@ -5,9 +5,9 @@
 
 import { initializeApp, getApps as getFirebaseApps, FirebaseApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged, Auth, User as FirebaseUser } from 'firebase/auth';
-import { getFirestore, collection, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, Firestore, increment } from 'firebase/firestore';
-import { AppModel, FirebaseConfigType } from '../types';
-import { INITIAL_APPS } from '../data/initialApps';
+import { getFirestore, collection, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, Firestore, increment, query, where } from 'firebase/firestore';
+import { AppModel, FirebaseConfigType, ReviewModel } from '../types';
+import { INITIAL_APPS, MOCK_REVIEWS } from '../data/initialApps';
 
 const CONFIG_KEY = 'UMN_FIREBASE_CONFIG';
 const LOCAL_DB_KEY = 'UMN_APPS_DB';
@@ -616,6 +616,112 @@ class DatabaseService {
       apps[index].downloads = (apps[index].downloads || 0) + 1;
       this.saveLocalApps(apps);
     }
+  }
+
+  // --- Reviews/Comments APIs ---
+  public async getReviews(appId: string): Promise<ReviewModel[]> {
+    await this.ensureConfigLoaded();
+    if (this.isFirebaseConnected() && this.firestore) {
+      try {
+        const q = query(
+          collection(this.firestore, 'reviews'),
+          where('appId', '==', appId)
+        );
+        const querySnapshot = await this.withTimeout(getDocs(q));
+        const list: ReviewModel[] = [];
+        querySnapshot.forEach((docSnap) => {
+          list.push({ id: docSnap.id, ...docSnap.data() } as ReviewModel);
+        });
+        
+        // Sort by date/timestamp descending
+        list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        
+        // If Firestore reviews are empty for initial apps, fallback to mock reviews
+        if (list.length === 0) {
+          return MOCK_REVIEWS[appId] || [];
+        }
+        return list;
+      } catch (e) {
+        console.error("Firestore getReviews failed, falling back to server", e);
+      }
+    }
+
+    try {
+      const res = await fetch(getApiUrl(`/api/apps/${encodeURIComponent(appId)}/reviews`));
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn("Failed to get reviews from server, falling back to local fallback", e);
+    }
+
+    // Client-side local mock reviews backup
+    try {
+      const savedReviewsStr = safeStorage.getItem(`UMN_REVIEWS_${appId}`);
+      if (savedReviewsStr) {
+        return JSON.parse(savedReviewsStr);
+      }
+    } catch (e) {}
+
+    return MOCK_REVIEWS[appId] || [];
+  }
+
+  public async addReview(appId: string, reviewData: Omit<ReviewModel, 'id'>): Promise<ReviewModel> {
+    await this.ensureConfigLoaded();
+    const id = `r-${appId}-${Date.now()}`;
+    const newReview: ReviewModel = {
+      ...reviewData,
+      id,
+      date: reviewData.date || new Date().toISOString().split('T')[0]
+    };
+
+    // Save locally
+    try {
+      const currentReviews = await this.getReviews(appId);
+      const updated = [newReview, ...currentReviews];
+      safeStorage.setItem(`UMN_REVIEWS_${appId}`, JSON.stringify(updated));
+    } catch (e) {}
+
+    if (this.isFirebaseConnected() && this.firestore) {
+      try {
+        await setDoc(doc(this.firestore, 'reviews', id), {
+          ...newReview,
+          appId
+        });
+        
+        // Also update the app's rating and reviewsCount in Firestore
+        const reviews = await this.getReviews(appId);
+        const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);
+        const reviewsCount = reviews.length;
+        const avgRating = parseFloat((totalRating / reviewsCount).toFixed(1));
+        
+        const appRef = doc(this.firestore, 'apps', appId);
+        await updateDoc(appRef, {
+          reviewsCount,
+          rating: avgRating,
+          updatedAt: new Date().toISOString()
+        }).catch((err) => console.warn("Failed to update app rating count in Firestore", err));
+        
+        return newReview;
+      } catch (e: any) {
+        console.error("Firestore addReview failed", e);
+      }
+    }
+
+    try {
+      const res = await fetch(getApiUrl(`/api/apps/${encodeURIComponent(appId)}/reviews`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newReview)
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn("Failed to save review to server", e);
+    }
+
+    return newReview;
   }
 
   // --- Authentication APIs ---

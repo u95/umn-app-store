@@ -9,6 +9,7 @@ import { AppModel, CategoryType } from '../types';
 import AppCard from '../components/AppCard';
 import AppSlider from '../components/AppSlider';
 import SkeletonCard from '../components/SkeletonCard';
+import { AppTranslations } from '../data/translations';
 
 interface HomeViewProps {
   apps: AppModel[];
@@ -16,6 +17,8 @@ interface HomeViewProps {
   searchQuery: string;
   onAppClick: (id: string) => void;
   onDownloadClick: (app: AppModel, e: React.MouseEvent) => void;
+  language: 'en' | 'ta';
+  t: AppTranslations;
 }
 
 const CATEGORIES: ('All' | CategoryType)[] = [
@@ -34,9 +37,27 @@ export default function HomeView({
   isLoading,
   searchQuery,
   onAppClick,
-  onDownloadClick
+  onDownloadClick,
+  language,
+  t
 }: HomeViewProps) {
   const [selectedCategory, setSelectedCategory] = useState<'All' | CategoryType>('All');
+
+  // Multi-language category helper
+  const getCategoryLabel = (cat: string) => {
+    if (language !== 'ta') return cat;
+    switch (cat) {
+      case 'All': return 'அனைத்தும்';
+      case 'Bible': return 'பைபிள் / வேதாகமம்';
+      case 'Music': return 'பாடல்கள் / இசை';
+      case 'Games': return 'விளையாட்டுகள்';
+      case 'Tools': return 'கருவிகள்';
+      case 'Lifestyle': return 'வாழ்க்கை முறை';
+      case 'Education': return 'கல்வி';
+      case 'Books': return 'புத்தகங்கள்';
+      default: return cat;
+    }
+  };
 
   // Filter application list based on search and category selections
   const filteredApps = useMemo(() => {
@@ -93,7 +114,7 @@ export default function HomeView({
                     : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800'
                 }`}
               >
-                {cat}
+                {getCategoryLabel(cat)}
               </button>
             ))}
           </div>
@@ -109,11 +130,15 @@ export default function HomeView({
                 <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white flex items-center gap-2">
                   <Compass className="w-6 h-6 text-green-500" />
                   <span>
-                    {searchQuery ? `Search Results for "${searchQuery}"` : `${selectedCategory} Applications`}
+                    {searchQuery 
+                      ? (language === 'ta' ? `"${searchQuery}" க்கான தேடல் முடிவுகள்` : `Search Results for "${searchQuery}"`) 
+                      : (language === 'ta' ? `${getCategoryLabel(selectedCategory)} செயலிகள்` : `${selectedCategory} Applications`)}
                   </span>
                 </h2>
                 <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
-                  We found {filteredApps.length} published applications
+                  {language === 'ta' 
+                    ? `நாங்கள் ${filteredApps.length} வெளியிடப்பட்ட செயலிகளைக் கண்டறிந்துள்ளோம்` 
+                    : `We found ${filteredApps.length} published applications`}
                 </p>
               </div>
             </div>
@@ -136,15 +161,12 @@ export default function HomeView({
             ) : (
               <div className="flex flex-col items-center justify-center py-20 text-center bg-zinc-50 dark:bg-zinc-900/40 rounded-3xl border border-dashed border-zinc-200 dark:border-zinc-800">
                 <Compass className="w-16 h-16 text-zinc-300 dark:text-zinc-700 animate-pulse mb-4" />
-                <h3 className="text-lg font-bold text-zinc-800 dark:text-zinc-200">No applications matched your filters</h3>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-sm mt-1.5 leading-relaxed">
-                  Try adjusting your keywords, expanding your selection, or viewing other categories!
-                </p>
+                <h3 className="text-lg font-bold text-zinc-800 dark:text-zinc-200">{t.noAppsFound}</h3>
                 <button 
                   onClick={() => { setSelectedCategory('All'); }}
                   className="mt-5 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold shadow-md shadow-green-500/15"
                 >
-                  Reset Category
+                  {language === 'ta' ? 'வகைகளை மீட்டமைக்கவும்' : 'Reset Category'}
                 </button>
               </div>
             )}
@@ -175,7 +197,7 @@ export default function HomeView({
                 <section className="space-y-5">
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-5 h-5 text-green-500" />
-                    <h2 className="text-xl font-bold tracking-tight text-zinc-950 dark:text-white">Popular Categories</h2>
+                    <h2 className="text-xl font-bold tracking-tight text-zinc-950 dark:text-white">{t.popularCategories}</h2>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {topCategories.map((cat) => (
@@ -187,10 +209,12 @@ export default function HomeView({
                         <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-15 group-hover:scale-125 transition-transform">
                           <Award className="w-24 h-24 stroke-[1.5]" />
                         </div>
-                        <h3 className="font-bold text-lg tracking-tight">{cat.name}</h3>
-                        <p className="text-white/80 text-xs mt-1 font-medium">{cat.count} total apps</p>
+                        <h3 className="font-bold text-lg tracking-tight">{getCategoryLabel(cat.name)}</h3>
+                        <p className="text-white/80 text-xs mt-1 font-medium">
+                          {cat.count} {language === 'ta' ? 'செயலிகள்' : 'total apps'}
+                        </p>
                         <div className="mt-4 flex items-center gap-1 text-[11px] font-bold tracking-wide uppercase">
-                          <span>Explore</span>
+                          <span>{language === 'ta' ? 'ஆராய்ந்து பார்' : 'Explore'}</span>
                           <ArrowUpRight className="w-3.5 h-3.5" />
                         </div>
                       </div>
@@ -204,13 +228,13 @@ export default function HomeView({
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-2">
                         <History className="w-5 h-5 text-green-500" />
-                        <h2 className="text-xl font-bold tracking-tight text-zinc-950 dark:text-white">Latest Releases</h2>
+                        <h2 className="text-xl font-bold tracking-tight text-zinc-950 dark:text-white">{t.latestReleases}</h2>
                       </div>
                       <button 
                         onClick={() => setSelectedCategory('All')} 
                         className="text-xs font-bold text-green-600 dark:text-green-400 hover:underline"
                       >
-                        View all
+                        {t.viewAll}
                       </button>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -232,7 +256,7 @@ export default function HomeView({
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-2">
                         <TrendingUp className="w-5 h-5 text-green-500" />
-                        <h2 className="text-xl font-bold tracking-tight text-zinc-950 dark:text-white">Trending on Campus</h2>
+                        <h2 className="text-xl font-bold tracking-tight text-zinc-950 dark:text-white">{t.trendingOnCampus}</h2>
                       </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -254,8 +278,8 @@ export default function HomeView({
                     <div className="flex items-center gap-2.5">
                       <Award className="w-5.5 h-5.5 text-green-500" />
                       <div>
-                        <h2 className="text-xl font-bold tracking-tight text-zinc-950 dark:text-white">Top Downloaded Apps</h2>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">The most popular utility and entertainment resources on campus</p>
+                        <h2 className="text-xl font-bold tracking-tight text-zinc-950 dark:text-white">{t.topDownloadedApps}</h2>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">{t.categoriesSubtitle}</p>
                       </div>
                     </div>
                   </div>
@@ -275,41 +299,6 @@ export default function HomeView({
           </>
         )}
       </div>
-
-      {/* Google Play Style Footer */}
-      <footer className="border-t border-zinc-100 dark:border-zinc-900 bg-zinc-50 dark:bg-zinc-950/40 py-12 mt-20 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-green-500 flex items-center justify-center text-white text-sm font-bold">U</div>
-              <span className="font-bold text-zinc-900 dark:text-white">UMN App Store</span>
-            </div>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-sm">
-              The premium, community-driven application and resource archive for Android. Explore, host, and publish custom academic, musical, study, and religious tools.
-            </p>
-          </div>
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-4">Supported Categories</h4>
-            <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-zinc-600 dark:text-zinc-400">
-              <button onClick={() => setSelectedCategory('Bible')} className="hover:text-green-500 text-left cursor-pointer">Bible</button>
-              <button onClick={() => setSelectedCategory('Music')} className="hover:text-green-500 text-left cursor-pointer">Music</button>
-              <button onClick={() => setSelectedCategory('Games')} className="hover:text-green-500 text-left cursor-pointer">Games</button>
-              <button onClick={() => setSelectedCategory('Tools')} className="hover:text-green-500 text-left cursor-pointer">Tools</button>
-              <button onClick={() => setSelectedCategory('Lifestyle')} className="hover:text-green-500 text-left cursor-pointer">Lifestyle</button>
-              <button onClick={() => setSelectedCategory('Education')} className="hover:text-green-500 text-left cursor-pointer">Education</button>
-            </div>
-          </div>
-          <div className="space-y-4">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Publisher Portal</h4>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-              Are you an active campus developer or group? Join our Console and release your APKs via GitHub Releases directly.
-            </p>
-            <div className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
-              &copy; 2026 UMN Ministry Devs. Designed in adherence with Google Material Design 3.
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

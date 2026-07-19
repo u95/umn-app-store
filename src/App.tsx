@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { dbService } from './lib/db';
 import { AppModel } from './types';
 import { INITIAL_APPS } from './data/initialApps';
+import { TRANSLATIONS } from './data/translations';
 import Navbar from './components/Navbar';
 import HomeView from './views/HomeView';
 import DetailsView from './views/DetailsView';
@@ -47,6 +48,27 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentUser, setCurrentUser] = useState<{ uid: string; email: string } | null>(null);
+  
+  // Language translation selection (English or Tamil)
+  const [language, setLanguage] = useState<'en' | 'ta'>(() => {
+    try {
+      const saved = localStorage.getItem('UMN_APP_STORE_LANG');
+      if (saved === 'en' || saved === 'ta') return saved;
+    } catch (e) {}
+    return 'ta'; // Default to Tamil for localized preference!
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('UMN_APP_STORE_LANG', language);
+    } catch (e) {}
+  }, [language]);
+
+  const handleToggleLanguage = () => {
+    setLanguage(prev => prev === 'en' ? 'ta' : 'en');
+  };
+
+  const t = TRANSLATIONS[language];
   
   // Custom router state matching client requirements
   const [currentPage, setCurrentPage] = useState<string>('home'); // 'home', 'app', 'login', 'admin'
@@ -267,6 +289,9 @@ export default function App() {
         onToggleTheme={() => setIsDarkMode(!isDarkMode)}
         showInstallBtn={showInstallBtn}
         onInstallApp={handleInstallApp}
+        language={language}
+        onToggleLanguage={handleToggleLanguage}
+        t={t}
       />
 
       {/* Main workspace layout router */}
@@ -278,6 +303,8 @@ export default function App() {
             searchQuery={searchQuery}
             onAppClick={(id) => handleNavigate('app', { id })}
             onDownloadClick={handleDownloadApk}
+            language={language}
+            t={t}
           />
         )}
 
@@ -289,6 +316,8 @@ export default function App() {
             onBack={() => handleNavigate('home')}
             onAppClick={(id) => handleNavigate('app', { id })}
             onDownloadClick={handleDownloadApk}
+            language={language}
+            t={t}
           />
         )}
 

@@ -4,7 +4,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Search, Sun, Moon, LogIn, LayoutDashboard, LogOut, Terminal, X } from 'lucide-react';
+import { Search, Sun, Moon, LogIn, LayoutDashboard, LogOut, Terminal, X, Languages } from 'lucide-react';
+import { AppTranslations } from '../data/translations';
 
 interface NavbarProps {
   currentSearch: string;
@@ -17,6 +18,9 @@ interface NavbarProps {
   onToggleTheme: () => void;
   showInstallBtn?: boolean;
   onInstallApp?: () => void;
+  language: 'en' | 'ta';
+  onToggleLanguage: () => void;
+  t: AppTranslations;
 }
 
 export default function Navbar({
@@ -29,19 +33,23 @@ export default function Navbar({
   isDarkMode,
   onToggleTheme,
   showInstallBtn = false,
-  onInstallApp
+  onInstallApp,
+  language,
+  onToggleLanguage,
+  t
 }: NavbarProps) {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [showFirebaseInfo, setShowFirebaseInfo] = useState(false);
 
   // Sync title depending on page
   useEffect(() => {
+    const isTa = language === 'ta';
     document.title = currentPage === 'admin' 
-      ? 'UMN Play Console - Dashboard' 
+      ? (isTa ? 'UMN பிளே கன்சோல் - டாஷ்போர்டு' : 'UMN Play Console - Dashboard')
       : currentPage === 'login'
-      ? 'UMN Play Console - Sign In'
-      : 'UMN App Store - Android Play Store';
-  }, [currentPage]);
+      ? (isTa ? 'UMN பிளே கன்சோல் - உள்நுழைக' : 'UMN Play Console - Sign In')
+      : (isTa ? 'உமன்ஸ் பிளே ஸ்டோர் - ஆண்ட்ராய்டு ஆப் ஸ்டோர்' : 'UMN App Store - Android Play Store');
+  }, [currentPage, language]);
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border-b border-zinc-100 dark:border-zinc-900 transition-colors duration-200">
@@ -62,9 +70,9 @@ export default function Navbar({
               <path d="M18.42 15.17L14.28 12.65L14.26 12.64L14.12 12.5L14.26 12.36L14.28 12.35L18.42 9.83C19.22 9.34 19.8 9.92 19.53 10.8L18.83 12.5L19.53 14.2C19.8 15.08 19.22 15.66 18.42 15.17Z"/>
             </svg>
           </div>
-          <div className="hidden sm:block">
-            <span className="font-bold tracking-tight text-zinc-900 dark:text-white text-lg">UMN</span>
-            <span className="text-zinc-500 dark:text-zinc-400 font-medium text-lg ml-1">App Store</span>
+          <div className="hidden sm:block select-none">
+            <span className="font-bold tracking-tight text-zinc-900 dark:text-white text-lg">{language === 'ta' ? 'உமன்ஸ் ' : 'UMN '}</span>
+            <span className="text-zinc-500 dark:text-zinc-400 font-semibold text-[15px] ml-0.5">{language === 'ta' ? 'ஆப் ஸ்டோர்' : 'App Store'}</span>
           </div>
         </div>
 
@@ -78,7 +86,7 @@ export default function Navbar({
             <Search className="w-5 h-5 text-zinc-400 shrink-0" />
             <input
               type="text"
-              placeholder="Search apps, developers, or categories..."
+              placeholder={t.searchPlaceholder}
               value={currentSearch}
               onChange={(e) => onSearchChange(e.target.value)}
               onFocus={() => setIsSearchFocused(true)}
@@ -105,14 +113,14 @@ export default function Navbar({
             <button
               onClick={onInstallApp}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-green-500 hover:bg-green-600 text-white shadow-md shadow-green-500/15 transition-all select-none cursor-pointer"
-              title="Install App Store as Mobile App / APK"
+              title={language === 'ta' ? "செயலியை நிறுவுக" : "Install App Store as Mobile App / APK"}
               id="install-pwa-btn"
             >
               <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current stroke-[2.5]" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 15V3m0 12l-4-4m4 4l4-4M4 17v1a3 3 0 003 3h10a3 3 0 003-3v-1" />
               </svg>
-              <span className="hidden md:inline">Install App Store (APK)</span>
-              <span className="md:hidden font-bold text-xs">செயலியை நிறுவு</span>
+              <span className="hidden md:inline">{language === 'ta' ? 'செயலியை நிறுவு' : 'Install App Store (APK)'}</span>
+              <span className="md:hidden font-bold text-xs">{language === 'ta' ? 'நிறுவு' : 'Install'}</span>
             </button>
           )}
           
@@ -123,9 +131,20 @@ export default function Navbar({
           >
             <span className={`w-1.5 h-1.5 rounded-full ${(import.meta as any).env.VITE_FIREBASE_API_KEY ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
             <span className="text-zinc-600 dark:text-zinc-400">
-              {(import.meta as any).env.VITE_FIREBASE_API_KEY ? 'Firebase DB' : 'Local Sandbox'}
+              {(import.meta as any).env.VITE_FIREBASE_API_KEY ? 'Firebase DB' : (language === 'ta' ? 'உள்ளூர் தற்காலிக தளம்' : 'Local Sandbox')}
             </span>
           </div>
+
+          {/* Language Toggle */}
+          <button
+            onClick={onToggleLanguage}
+            className="p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-500 dark:text-zinc-400 transition-colors flex items-center gap-1 hover:text-green-500 cursor-pointer"
+            title={language === 'en' ? "தமிழ் மொழிக்கு மாற்றுக (Switch to Tamil)" : "Switch to English"}
+            id="language-toggle"
+          >
+            <Languages className="w-5 h-5 text-green-500" />
+            <span className="hidden sm:inline text-xs font-bold">{language === 'en' ? 'தமிழ்' : 'English'}</span>
+          </button>
 
           {/* Theme Toggle */}
           <button

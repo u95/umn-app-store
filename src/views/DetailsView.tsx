@@ -4,11 +4,12 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Star, Download, ShieldCheck, Share2, Copy, Check, MessageSquare, Sparkles, Box } from 'lucide-react';
+import { ArrowLeft, Star, Download, ShieldCheck, Share2, Check, MessageSquare, Sparkles, Box, FileText, AlertCircle, Calendar, Cpu, PenTool } from 'lucide-react';
 import { AppModel, ReviewModel } from '../types';
 import { INITIAL_APPS, MOCK_REVIEWS } from '../data/initialApps';
 import AppCard from '../components/AppCard';
 import { dbService } from '../lib/db';
+import { AppTranslations } from '../data/translations';
 
 interface DetailsViewProps {
   appId: string;
@@ -17,6 +18,8 @@ interface DetailsViewProps {
   onBack: () => void;
   onAppClick: (id: string) => void;
   onDownloadClick: (app: AppModel) => void;
+  language: 'en' | 'ta';
+  t: AppTranslations;
 }
 
 export default function DetailsView({
@@ -25,24 +28,44 @@ export default function DetailsView({
   isLoading = false,
   onBack,
   onAppClick,
-  onDownloadClick
+  onDownloadClick,
+  language,
+  t
 }: DetailsViewProps) {
   const [copied, setCopied] = useState(false);
   const [dynamicApp, setDynamicApp] = useState<AppModel | null>(null);
   const [isFetchingDynamicApp, setIsFetchingDynamicApp] = useState(false);
+
+  // Download simulation state
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  const [isInstalling, setIsInstalling] = useState(false);
+  const [showInstallHelp, setShowInstallHelp] = useState(false);
+
+  // Review submission state
+  const [customReviews, setCustomReviews] = useState<ReviewModel[]>([]);
+  const [reviewName, setReviewName] = useState('');
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSuccess, setReviewSuccess] = useState(false);
 
   // Retrieve current app details with self-healing dynamic fallback
   const app = useMemo(() => {
     const found = apps.find(a => a.id === appId);
     if (found) return found;
     if (dynamicApp && dynamicApp.id === appId) return dynamicApp;
-    // Defensive self-healing fallback to preloaded baseline apps
     return INITIAL_APPS.find(a => a.id === appId) || null;
   }, [apps, appId, dynamicApp]);
 
-  // Track page views and reset scroll top on app change
+  // Reset states on app change
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    setDownloadProgress(null);
+    setIsInstalling(false);
+    setShowInstallHelp(false);
+    setReviewSuccess(false);
+    setReviewComment('');
+    setReviewName('');
+    setReviewRating(5);
 
     // Check if we need to fetch the app dynamically because it is missing in the props list
     const foundInProps = apps.find(a => a.id === appId);
@@ -70,29 +93,34 @@ export default function DetailsView({
     }
   }, [appId, apps]);
 
-  // Gather reviews
+  // Gather reviews dynamically
   const reviews: ReviewModel[] = useMemo(() => {
     if (!app) return [];
-    return MOCK_REVIEWS[app.id] || [
+    const baselineReviews = MOCK_REVIEWS[app.id] || [
       {
         id: "r-def-1",
-        userName: "Community Reviewer",
+        userName: language === 'ta' ? "சபை உறுப்பினர்" : "Community Reviewer",
         rating: 5,
-        comment: "Excellent utility application, super fast, and easy to run on my Android emulator. 5 stars!",
+        comment: language === 'ta' 
+          ? "மிகவும் அருமையான பயனுள்ள செயலி! ஆண்ட்ராய்டு மொபைலில் எளிமையாகவும் வேகமாகவும் வேலை செய்கிறது."
+          : "Excellent utility application, super fast, and easy to run on my Android device. 5 stars!",
         date: "2026-07-01"
       }
     ];
-  }, [app]);
+    // Filter custom reviews written by current user for this specific app
+    const userReviews = customReviews.filter(r => r.id.startsWith(`custom-${app.id}-`));
+    return [...userReviews, ...baselineReviews];
+  }, [app, customReviews, language]);
 
   // Compute average rating and count
   const stats = useMemo(() => {
-    if (reviews.length === 0) return { avg: 4.8, total: 1 };
+    if (reviews.length === 0) return { avg: app ? app.rating : 4.8, total: 0 };
     const totalRating = reviews.reduce((acc, r) => acc + r.rating, 0);
     return {
       avg: totalRating / reviews.length,
       total: reviews.length
     };
-  }, [reviews]);
+  }, [reviews, app]);
 
   // Gather related apps of same category (excluding current app)
   const relatedApps = useMemo(() => {
@@ -104,27 +132,27 @@ export default function DetailsView({
 
   if (isLoading || isFetchingDynamicApp) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-32 text-center space-y-4 flex flex-col items-center justify-center">
-        <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-zinc-500 dark:text-zinc-400 text-sm font-medium">Loading application details...</p>
+      <div className="max-w-2xl mx-auto px-4 py-32 text-center space-y-4 flex flex-col items-center justify-center font-sans">
+        <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-zinc-500 dark:text-zinc-400 text-sm font-semibold">{t.loadingDetails}</p>
       </div>
     );
   }
 
   if (!app) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-20 text-center space-y-4">
+      <div className="max-w-2xl mx-auto px-4 py-20 text-center space-y-4 font-sans">
         <div className="w-16 h-16 bg-red-100 dark:bg-red-950/40 text-red-500 rounded-full flex items-center justify-center mx-auto text-2xl font-bold">!</div>
-        <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Application Not Found</h2>
+        <h2 className="text-xl font-bold text-zinc-900 dark:text-white">{t.appNotFound}</h2>
         <p className="text-zinc-500 dark:text-zinc-400 text-sm">
-          The application with the specified identifier could not be retrieved. It may have been draft-saved, suspended, or deleted.
+          {t.appNotFoundDesc}
         </p>
         <button
           onClick={onBack}
-          className="px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold inline-flex items-center gap-2"
+          className="px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold inline-flex items-center gap-2 cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Return Home</span>
+          <span>{t.backToStore}</span>
         </button>
       </div>
     );
@@ -140,13 +168,69 @@ export default function DetailsView({
   };
 
   const formatDownloadsCount = (num: number) => {
+    if (language === 'ta') {
+      if (num >= 1000000) return (num / 1000000).toFixed(1) + ' மில்லியன்+';
+      if (num >= 1000) return (num / 1000).toFixed(1) + ' ஆயிரம்+';
+      return num.toString() + ' பதிவிறக்கங்கள்';
+    }
     if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M+';
     if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K+';
     return num.toString();
   };
 
+  // Simulated Download Progress Launcher
+  const handleSimulateDownload = () => {
+    if (downloadProgress !== null) return; // Already running
+    setDownloadProgress(0);
+    setIsInstalling(true);
+
+    const interval = setInterval(() => {
+      setDownloadProgress((prev) => {
+        if (prev === null) {
+          clearInterval(interval);
+          return null;
+        }
+        if (prev >= 100) {
+          clearInterval(interval);
+          // Trigger actual external link download
+          onDownloadClick(app);
+          setTimeout(() => {
+            setIsInstalling(false);
+            setShowInstallHelp(true);
+          }, 800);
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, 180);
+  };
+
+  // Review submission
+  const handleAddReview = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewName.trim() || !reviewComment.trim()) return;
+
+    const newRev: ReviewModel = {
+      id: `custom-${app.id}-${Date.now()}`,
+      userName: reviewName.trim(),
+      rating: reviewRating,
+      comment: reviewComment.trim(),
+      date: new Date().toISOString().split('T')[0]
+    };
+
+    setCustomReviews(prev => [newRev, ...prev]);
+    setReviewSuccess(true);
+    setReviewComment('');
+    setReviewName('');
+    
+    // Clear success banner after 5 seconds
+    setTimeout(() => {
+      setReviewSuccess(false);
+    }, 5000);
+  };
+
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-10 pb-24 animate-slide-up" id={`details-view-${app.id}`}>
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-10 pb-24 animate-slide-up font-sans" id={`details-view-${app.id}`}>
       
       {/* Back Button Rail */}
       <div className="flex items-center justify-between">
@@ -155,7 +239,7 @@ export default function DetailsView({
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer border border-zinc-100 dark:border-zinc-800"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to Store</span>
+          <span>{t.backToStore}</span>
         </button>
 
         <button
@@ -164,7 +248,7 @@ export default function DetailsView({
           title="Copy direct share URL"
         >
           {copied ? <Check className="w-4 h-4 text-green-500" /> : <Share2 className="w-4 h-4" />}
-          <span>{copied ? 'Link Copied!' : 'Share App'}</span>
+          <span>{copied ? (language === 'ta' ? 'இணைப்பு நகலெடுக்கப்பட்டது!' : 'Link Copied!') : (language === 'ta' ? 'செயலியைப் பகிர்' : 'Share App')}</span>
         </button>
       </div>
 
@@ -191,7 +275,7 @@ export default function DetailsView({
 
             <div>
               <span className="inline-block px-3 py-1 bg-green-50 dark:bg-green-950/40 text-green-600 dark:text-green-400 rounded-full text-xs font-bold uppercase tracking-wider mb-2">
-                {app.category}
+                {language === 'ta' ? (app.category === 'Bible' ? 'பைபிள் / வேதாகமம்' : app.category === 'Music' ? 'பாடல்கள் / இசை' : app.category) : app.category}
               </span>
               <h1 className="text-xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50 leading-tight">
                 {app.name}
@@ -207,79 +291,115 @@ export default function DetailsView({
           {/* KPI Spec Matrix Grid */}
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="bg-zinc-50 dark:bg-zinc-950/40 p-3 rounded-2xl border border-zinc-100/50 dark:border-zinc-900/40">
-              <span className="block text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Rating</span>
+              <span className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{t.ratingAverage}</span>
               <span className="inline-flex items-center gap-0.5 text-base font-extrabold text-zinc-800 dark:text-zinc-100 mt-1">
                 {stats.avg.toFixed(1)} <Star className="w-3.5 h-3.5 fill-amber-400 stroke-amber-400 mb-0.5" />
               </span>
-              <span className="block text-[10px] text-zinc-400 font-medium mt-0.5">{stats.total} reviews</span>
+              <span className="block text-[10px] text-zinc-400 font-medium mt-0.5">{stats.total} {t.reviewsCount}</span>
             </div>
 
             <div className="bg-zinc-50 dark:bg-zinc-950/40 p-3 rounded-2xl border border-zinc-100/50 dark:border-zinc-900/40">
-              <span className="block text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Downloads</span>
+              <span className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{t.downloads}</span>
               <span className="block text-base font-extrabold text-zinc-800 dark:text-zinc-100 mt-1">
                 {formatDownloadsCount(app.downloads)}
               </span>
-              <span className="block text-[10px] text-zinc-400 font-medium mt-0.5">active installs</span>
+              <span className="block text-[10px] text-zinc-400 font-medium mt-0.5">{t.activeInstalls}</span>
             </div>
 
             <div className="bg-zinc-50 dark:bg-zinc-950/40 p-3 rounded-2xl border border-zinc-100/50 dark:border-zinc-900/40">
-              <span className="block text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Storage</span>
+              <span className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{t.size}</span>
               <span className="block text-base font-extrabold text-zinc-800 dark:text-zinc-100 mt-1">
                 {app.size}
               </span>
-              <span className="block text-[10px] text-zinc-400 font-medium mt-0.5">APK payload</span>
+              <span className="block text-[10px] text-zinc-400 font-medium mt-0.5">{t.apkPayload}</span>
             </div>
           </div>
 
-          {/* Action Download / Install Triggers */}
+          {/* Action Download / Install Triggers with simulation and progress */}
           <div className="space-y-3 pt-2">
-            <button
-              onClick={() => onDownloadClick(app)}
-              className="w-full h-12 rounded-xl bg-green-500 hover:bg-green-600 active:scale-98 text-white font-bold flex items-center justify-center gap-2.5 shadow-md shadow-green-500/15 cursor-pointer hover:shadow-lg hover:shadow-green-500/20 transition-all text-sm tracking-tight"
-            >
-              <Download className="w-5 h-5" />
-              <span>Download APK</span>
-            </button>
+            {downloadProgress === null ? (
+              <button
+                onClick={handleSimulateDownload}
+                className="w-full h-12 rounded-xl bg-green-500 hover:bg-green-600 active:scale-98 text-white font-bold flex items-center justify-center gap-2.5 shadow-md shadow-green-500/15 cursor-pointer hover:shadow-lg hover:shadow-green-500/20 transition-all text-sm tracking-tight"
+              >
+                <Download className="w-5 h-5 animate-bounce" />
+                <span>{t.downloadApk}</span>
+              </button>
+            ) : (
+              <div className="w-full bg-zinc-50 dark:bg-zinc-950/60 rounded-2xl p-4 border border-green-500/20 space-y-2.5">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-bold text-green-600 dark:text-green-400 flex items-center gap-1.5 animate-pulse">
+                    <span className="w-2 h-2 bg-green-500 rounded-full animate-ping" />
+                    {downloadProgress < 100 
+                      ? t.downloading.replace('{progress}', downloadProgress.toString())
+                      : (language === 'ta' ? 'பதிவிறக்கம் முடிந்தது!' : 'Download Complete!')}
+                  </span>
+                  <span className="font-mono font-bold text-zinc-700 dark:text-zinc-300">{downloadProgress}%</span>
+                </div>
+                {/* Horizontal Progress Bar */}
+                <div className="w-full h-2.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-200"
+                    style={{ width: `${downloadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
             
-            <div className="flex items-center justify-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500 font-medium">
+            <div className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-400 dark:text-zinc-500 font-medium">
               <ShieldCheck className="w-4 h-4 text-emerald-500" />
               <span>
-                Verified Secure Link ({app.apk && app.apk.includes('drive.google.com') ? 'Google Drive Cloud' : 'GitHub Releases'})
+                {t.verifySecure}
               </span>
             </div>
           </div>
+
+          {/* Android Installation Interactive Help Guide */}
+          {showInstallHelp && (
+            <div className="p-4 bg-amber-500/5 dark:bg-amber-500/5 border border-amber-500/20 rounded-2xl text-xs space-y-2.5 animate-slide-up">
+              <h4 className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{language === 'ta' ? 'ஆண்ட்ராய்டு APK நிறுவும் முறை' : 'How to install this downloaded APK?'}</span>
+              </h4>
+              <ol className="list-decimal pl-4.5 space-y-1.5 text-zinc-600 dark:text-zinc-400 text-[11px] leading-relaxed">
+                <li>{language === 'ta' ? 'பதிவிறக்கம் செய்யப்பட்ட .apk கோப்பை அழுத்தவும்.' : 'Click and open the downloaded .apk file.'}</li>
+                <li>{language === 'ta' ? 'கேட்கப்பட்டால், "Allow from this source" அல்லது "அறியப்படாத ஆதாரங்கள்" என்பதை அனுமதிக்கவும்.' : 'If prompted, authorize installation from "Unknown Sources" or your web browser.'}</li>
+                <li>{language === 'ta' ? '"Install" பொத்தானை அழுத்தி வெற்றிகரமாக இயக்கவும்.' : 'Hit "Install" to complete and run the utility smoothly!'}</li>
+              </ol>
+            </div>
+          )}
 
           <hr className="border-zinc-100 dark:border-zinc-800/60" />
 
           {/* App Metadata Specs Checklist */}
           <div className="space-y-3.5 text-xs">
             <div className="flex justify-between items-center">
-              <span className="text-zinc-400 dark:text-zinc-500 font-medium">Current Version</span>
-              <span className="font-mono font-bold text-zinc-800 dark:text-zinc-200">{app.version}</span>
+              <span className="text-zinc-400 dark:text-zinc-500 font-semibold">{t.version}</span>
+              <span className="font-mono font-bold text-zinc-800 dark:text-zinc-200 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">{app.version}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-zinc-400 dark:text-zinc-500 font-medium">Published Date</span>
+              <span className="text-zinc-400 dark:text-zinc-500 font-semibold">{t.publishedOn}</span>
               <span className="font-bold text-zinc-800 dark:text-zinc-200">
-                {new Date(app.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                {new Date(app.createdAt).toLocaleDateString(language === 'ta' ? 'ta-IN' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
               </span>
             </div>
             {app.updatedAt && (
               <div className="flex justify-between items-center">
-                <span className="text-zinc-400 dark:text-zinc-500 font-medium">Last Updated</span>
+                <span className="text-zinc-400 dark:text-zinc-500 font-semibold">{t.lastUpdated}</span>
                 <span className="font-bold text-zinc-800 dark:text-zinc-200">
-                  {new Date(app.updatedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                  {new Date(app.updatedAt).toLocaleDateString(language === 'ta' ? 'ta-IN' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                 </span>
               </div>
             )}
             <div className="flex justify-between items-center">
-              <span className="text-zinc-400 dark:text-zinc-500 font-medium">Target Runtime</span>
+              <span className="text-zinc-400 dark:text-zinc-500 font-semibold">{t.targetRuntime}</span>
               <span className="font-bold text-zinc-800 dark:text-zinc-200">Android 8.0+ (Oreo)</span>
             </div>
           </div>
 
         </div>
 
-        {/* Right Column - Rich description & details */}
+        {/* Right Column - Rich description, screenshots, and review form */}
         <div className="lg:col-span-8 space-y-8">
           
           {/* 1. Screenshots Gallery */}
@@ -287,7 +407,7 @@ export default function DetailsView({
             <div className="space-y-4">
               <h2 className="text-lg font-bold text-zinc-950 dark:text-white flex items-center gap-2">
                 <Box className="w-5 h-5 text-green-500" />
-                <span>Application Screenshots</span>
+                <span>{t.screenshots}</span>
               </h2>
               <div className="flex gap-4 overflow-x-auto pb-4 pt-1 snap-x snap-mandatory no-scrollbar">
                 {app.screenshots.map((screen, idx) => (
@@ -313,40 +433,117 @@ export default function DetailsView({
 
           {/* 2. Description Summary */}
           <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-6 space-y-4">
-            <h2 className="text-lg font-bold text-zinc-950 dark:text-white">About this application</h2>
+            <h2 className="text-lg font-bold text-zinc-950 dark:text-white flex items-center gap-2">
+              <FileText className="w-5 h-5 text-green-500" />
+              <span>{t.aboutApp}</span>
+            </h2>
             <div className="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed whitespace-pre-line">
               {app.description}
             </div>
           </div>
 
-          {/* 3. Community Reviews Section */}
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-6 space-y-6">
-            <div className="flex items-center justify-between">
+          {/* 3. Community Reviews & Submit New Review */}
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-6 space-y-8">
+            
+            {/* Form Title & Review Submission */}
+            <div className="space-y-5">
               <h2 className="text-lg font-bold text-zinc-950 dark:text-white flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-green-500" />
-                <span>Community Reflections & Reviews</span>
+                <PenTool className="w-5 h-5 text-green-500" />
+                <span>{t.writeReview}</span>
               </h2>
-            </div>
 
-            <div className="space-y-4">
-              {reviews.map((r) => (
-                <div key={r.id} className="p-4 bg-zinc-50 dark:bg-zinc-950/40 rounded-2xl border border-zinc-100 dark:border-zinc-900/60 space-y-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-bold text-zinc-800 dark:text-zinc-200 text-sm">{r.userName}</h4>
-                      <p className="text-[10px] text-zinc-400 font-medium">{new Date(r.date).toLocaleDateString()}</p>
-                    </div>
-                    <div className="flex items-center gap-0.5 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full text-amber-500">
-                      <Star className="w-3.5 h-3.5 fill-current" />
-                      <span className="text-xs font-bold">{r.rating}</span>
+              <form onSubmit={handleAddReview} className="space-y-4">
+                {reviewSuccess && (
+                  <div className="p-4 bg-green-500/10 text-green-600 dark:text-green-400 text-xs font-semibold rounded-xl border border-green-500/20">
+                    {t.successReview}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-zinc-500">{t.yourNameLabel}</label>
+                    <input 
+                      type="text" 
+                      placeholder={language === 'ta' ? "உதாரணம்: அன்பரசன் / அருப்புக்கோட்டை" : "e.g. John Doe / Bethesda"}
+                      value={reviewName}
+                      onChange={(e) => setReviewName(e.target.value)}
+                      className="w-full h-11 px-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-transparent text-sm focus:border-green-500 outline-none"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-zinc-500">{t.starRating}</label>
+                    <div className="flex gap-1 items-center h-11">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setReviewRating(star)}
+                          className="p-1 cursor-pointer transition-transform active:scale-90"
+                        >
+                          <Star 
+                            className={`w-6 h-6 ${star <= reviewRating ? 'fill-amber-400 text-amber-400' : 'text-zinc-300 dark:text-zinc-700'}`} 
+                          />
+                        </button>
+                      ))}
                     </div>
                   </div>
-                  <p className="text-xs text-zinc-600 dark:text-zinc-350 leading-relaxed italic">
-                    "{r.comment}"
-                  </p>
                 </div>
-              ))}
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-zinc-500">{t.reviewCommentLabel}</label>
+                  <textarea 
+                    rows={3}
+                    placeholder={t.reviewPlaceholder}
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    className="w-full p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-transparent text-sm focus:border-green-500 outline-none resize-none"
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-950 font-bold text-xs shadow-md transition-all cursor-pointer"
+                >
+                  {t.submitReview}
+                </button>
+              </form>
             </div>
+
+            <hr className="border-zinc-100 dark:border-zinc-800/60" />
+
+            {/* List of Reviews */}
+            <div className="space-y-6">
+              <h2 className="text-lg font-bold text-zinc-950 dark:text-white flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-green-500" />
+                <span>{language === 'ta' ? 'அனைத்து மதிப்புரைகள் & கருத்துகள்' : 'All Community Reflections'}</span>
+              </h2>
+
+              <div className="space-y-4">
+                {reviews.map((r) => (
+                  <div key={r.id} className="p-4 bg-zinc-50 dark:bg-zinc-950/40 rounded-2xl border border-zinc-100 dark:border-zinc-900/60 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-bold text-zinc-800 dark:text-zinc-200 text-sm">{r.userName}</h4>
+                        <p className="text-[10px] text-zinc-400 font-medium">
+                          {new Date(r.date).toLocaleDateString(language === 'ta' ? 'ta-IN' : 'en-US')}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-0.5 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full text-amber-500">
+                        <Star className="w-3.5 h-3.5 fill-current" />
+                        <span className="text-xs font-bold">{r.rating}</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-zinc-600 dark:text-zinc-350 leading-relaxed italic">
+                      "{r.comment}"
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
           </div>
 
         </div>
@@ -359,8 +556,10 @@ export default function DetailsView({
           <div className="flex items-center gap-2.5">
             <Sparkles className="w-5.5 h-5.5 text-green-500" />
             <div>
-              <h2 className="text-xl font-bold tracking-tight text-zinc-950 dark:text-white">Related Category Apps</h2>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Other helpful integrations in {app.category}</p>
+              <h2 className="text-xl font-bold tracking-tight text-zinc-950 dark:text-white">{t.relatedApps}</h2>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                {language === 'ta' ? `தொடர்புடையப் பிரிவில் உள்ள பிற பயனுள்ள செயலிகள்` : `Other helpful integrations in same category`}
+              </p>
             </div>
           </div>
 
